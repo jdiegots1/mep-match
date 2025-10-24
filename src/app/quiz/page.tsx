@@ -4,7 +4,7 @@ import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 
 type Vote = { id: string; title: string; date: string; type: string | null };
-type Member = { id: string; name: string; country: string | null };
+type Member = { id:string; name:string; country:string|null; group?:string|null; photo?:string|null };
 
 export default function QuizPage() {
   const [votes, setVotes] = useState<Vote[]>([]);
