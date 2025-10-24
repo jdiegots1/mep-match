@@ -1,26 +1,36 @@
 @import "tailwindcss";
 
+/* Paleta UE */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --eu-blue: #003399;
+  --eu-yellow: #ffcc00;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+html, body { height: 100%; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Animación de aparición */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.fade-in    { animation: fade-in-up .6s ease both; }
+.fade-in-1  { animation-delay: .10s; }
+.fade-in-2  { animation-delay: .20s; }
+.fade-in-3  { animation-delay: .30s; }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Botón estilo UE — sin @apply para evitar errores */
+.btn-eu{
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:1rem; /* ≈ rounded-2xl */
+  padding:.75rem 1.25rem; /* ≈ px-5 py-3 */
+  font-weight:600;
+  box-shadow:0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+  transition: transform .15s ease, filter .15s ease;
+  background: var(--eu-yellow);
+  color:#0b1d5f;
 }
+.btn-eu:hover { filter: brightness(0.95); transform: translateY(-1px); }
+.btn-eu:active{ transform: translateY(0); }
+
+/* Contenedor centrado de la hero */
+.hero-wrap { min-height: calc(100dvh - 56px); }
