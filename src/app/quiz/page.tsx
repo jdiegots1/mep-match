@@ -14,14 +14,26 @@ type Member = {
 
 type VoteRef = { id: string; url?: string | null };
 
-type Question = {
-  qid?: string;
-  id: string;            // debe existir en matrix.json
-  q?: string;            // enunciado (questions.es.json)
-  title?: string;        // fallback si viniera de votes_2025_main.es.json
+// Admite ambos esquemas: (a) el tuyo con voteId/question y (b) uno antiguo con id/q/title
+type QuestionInput = {
+  id?: string;                // puede ser un índice "1"
+  voteId?: string | number;   // el ID real del voto (HTV/EP)
+  q?: string;                 // posible enunciado
+  question?: string;          // enunciado (tu JSON)
+  title?: string;             // fallback
   queSeVota?: string;
-  aFavor?: string;
-  enContra?: string;
+  aFavor?: string | string[];
+  enContra?: string | string[];
+  url?: string | null;
+};
+
+// Esquema normalizado interno (id = voteId real)
+type Question = {
+  id: string;                 // siempre el voteId real (p.ej. "176302")
+  q: string;                  // enunciado
+  queSeVota?: string;
+  aFavor?: string[];
+  enContra?: string[];
   url?: string | null;
 };
 
@@ -48,7 +60,7 @@ export default function QuizPage() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [q, m, mat, votesEs] = await Promise.all([
+      const [qRaw, m, mat, votesEs] = await Promise.all([
         fetch("/data/questions.es.json").then(r => r.json()).catch(() => []),
         fetch("/data/members.enriched.json").then(r => r.json()).catch(() => []),
         fetch("/data/matrix.json").then(r => r.json()).catch(() => ({})),
@@ -57,35 +69,52 @@ export default function QuizPage() {
 
       if (!alive) return;
 
-      // índice para url oficial
+      // índice id -> url oficial
       const vIdx: Record<string, VoteRef> = {};
       (votesEs as any[]).forEach(v => {
         vIdx[String(v.id)] = { id: String(v.id), url: v.url ?? null };
       });
 
-      // normaliza y completa url si falta
-      const normalized = (q as Question[])
+      // normaliza: usa voteId como id real del voto, y elige el enunciado disponible
+      const normalized: Question[] = (qRaw as QuestionInput[])
         .map(x => {
-          const id = String(x.id ?? "").trim();
-          return {
-            ...x,
-            id,
-            url: x.url ?? vIdx[id]?.url ?? null,
-          };
-        })
-        .filter(x => x.id);
+          const idReal = String(x.voteId ?? x.id ?? "").trim(); // preferimos voteId
+          const qText = (x.question ?? x.q ?? x.title ?? "").toString().trim();
+          if (!idReal || !qText) return null;
 
-      // baraja y toma 10
-      const picked = shuffle(normalized).slice(0, 10);
+          const aFav = Array.isArray(x.aFavor)
+            ? x.aFavor
+            : (typeof x.aFavor === "string" && x.aFavor.trim() ? [x.aFavor] : []);
+          const enC = Array.isArray(x.enContra)
+            ? x.enContra
+            : (typeof x.enContra === "string" && x.enContra.trim() ? [x.enContra] : []);
+
+          return {
+            id: idReal,
+            q: qText,
+            queSeVota: x.queSeVota,
+            aFavor: aFav,
+            enContra: enC,
+            url: x.url ?? vIdx[idReal]?.url ?? null,
+          } as Question;
+        })
+        .filter(Boolean) as Question[];
+
+      // opcional: descarta preguntas cuyo id no exista en matrix (para asegurar resultados)
+      // Si prefieres mantener todas, comenta este filtro.
+      const normalizedFiltered = normalized.filter(q => !!(mat as Matrix)[q.id]);
+
+      const picked = shuffle(normalizedFiltered).slice(0, 10);
 
       setVotesIdx(vIdx);
       setQuestions(picked);
       setMembers(m);
       setMatrix(mat);
 
-      // debug mínimo en consola por si falta algo
       console.log("[quiz] loaded", {
-        questions: picked.length,
+        incoming: (qRaw as any[]).length,
+        normalized: normalized.length,
+        kept: picked.length,
         members: (m as any[]).length,
         votesInMatrix: Object.keys(mat || {}).length,
       });
@@ -95,9 +124,6 @@ export default function QuizPage() {
 
   const total = questions.length;
   const current = questions[i];
-
-  // enunciado con fallback
-  const questionText = current ? (current.q || current.title || "(sin texto)") : "";
 
   const answeredCount = useMemo(
     () => Object.keys(choices).filter(k => choices[k] !== undefined).length,
@@ -133,7 +159,7 @@ export default function QuizPage() {
     }
   }
 
-  // solo puntuamos con votos que existan en matrix
+  // solo puntuamos votos que existan en matrix
   const filteredChoices = useMemo(() => {
     const out: Record<string, number> = {};
     for (const [voteId, val] of Object.entries(choices)) {
@@ -142,10 +168,8 @@ export default function QuizPage() {
     return out;
   }, [choices, matrix]);
 
-  // resultados solo al final
   const top = useMemo(() => {
     if (!done) return [];
-    // exige al menos 5 respuestas válidas para evitar ruido
     if (Object.keys(filteredChoices).length < 5) return [];
     return scoreMembers(filteredChoices, matrix).slice(0, 10);
   }, [done, filteredChoices, matrix]);
@@ -243,9 +267,9 @@ export default function QuizPage() {
                 Pregunta {i + 1} de {total}
               </div>
 
-              {/* ENUNCIADO con fallback */}
+              {/* ENUNCIADO */}
               <h2 className="text-xl font-semibold">
-                {questionText}
+                {current.q}
               </h2>
 
               <div className="mt-5 grid sm:grid-cols-3 gap-3">
@@ -299,28 +323,32 @@ export default function QuizPage() {
                     </>
                   )}
 
-                  {(current.aFavor || current.enContra) && (
+                  {(current.aFavor?.length || current.enContra?.length) ? (
                     <div className="mt-4 grid md:grid-cols-2 gap-4">
-                      {current.aFavor && (
+                      {current.aFavor?.length ? (
                         <div>
                           <h4 className="font-semibold mb-1">Argumentos a favor</h4>
-                          <p className="text-sm opacity-90 whitespace-pre-line">{current.aFavor}</p>
+                          <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                            {current.aFavor.map((t, idx) => <li key={idx}>{t}</li>)}
+                          </ul>
                         </div>
-                      )}
-                      {current.enContra && (
+                      ) : null}
+                      {current.enContra?.length ? (
                         <div>
                           <h4 className="font-semibold mb-1">Argumentos en contra</h4>
-                          <p className="text-sm opacity-90 whitespace-pre-line">{current.enContra}</p>
+                          <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                            {current.enContra.map((t, idx) => <li key={idx}>{t}</li>)}
+                          </ul>
                         </div>
-                      )}
+                      ) : null}
                     </div>
-                  )}
+                  ) : null}
 
-                  {(current.url ?? votesIdx[current.id]?.url) && (
+                  {current.url && (
                     <div className="mt-3 text-sm">
                       <a
                         className="underline hover:opacity-80"
-                        href={(current.url ?? votesIdx[current.id]?.url)!}
+                        href={current.url}
                         target="_blank"
                         rel="noreferrer"
                       >
