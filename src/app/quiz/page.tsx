@@ -3,8 +3,15 @@ import { useEffect, useMemo, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 
-type Vote = { id: string; title: string; date: string; type: string | null };
-type Member = { id:string; name:string; country:string|null; group?:string|null; photo?:string|null };
+type Vote = { id: string; title: string; date: string; type: string | null; url?: string | null };
+type Member = {
+  id: string;
+  name: string;
+  country: string | null;
+  group?: string | null;
+  image?: string | null;        // merge_meps.ts escribe "image"
+  photo?: string | null;        // por si viniera como "photo"
+};
 
 export default function QuizPage() {
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -19,13 +26,14 @@ export default function QuizPage() {
     let alive = true;
     (async () => {
       const [v, m, mat] = await Promise.all([
-        fetch("/data/votes_2025_main.json").then(r => r.json()).catch(() => []),
-        fetch("/data/members.json").then(r => r.json()).catch(() => []),
+        // Usa el JSON con títulos en ES + url oficial
+        fetch("/data/votes_2025_main.es.json").then(r => r.json()).catch(() => []),
+        // Usa el JSON de miembros enriquecido (nombre normalizado, grupo, foto)
+        fetch("/data/members.enriched.json").then(r => r.json()).catch(() => []),
         fetch("/data/matrix.json").then(r => r.json()).catch(() => ({})),
       ]);
       if (!alive) return;
-      // usa 15-20 preguntas máx para agilidad
-      setVotes((v as Vote[]).slice(0, 18));
+      setVotes((v as Vote[]).slice(0, 18)); // 15–20 preguntas para agilidad
       setMembers(m);
       setMatrix(mat);
     })();
@@ -47,14 +55,12 @@ export default function QuizPage() {
 
   function pick(voteId: string, val: number) {
     setChoices(prev => ({ ...prev, [voteId]: val }));
-    // avanza automáticamente o termina
     const nextIndex = i + 1;
     if (nextIndex < total) setI(nextIndex);
     else setDone(true);
   }
 
   function back() {
-    // si estamos en resultados y hay al menos 1, vuelve a la última pregunta
     if (done && total > 0) {
       setDone(false);
       setI(total - 1);
@@ -69,9 +75,11 @@ export default function QuizPage() {
     return scoreMembers(choices, matrix).slice(0, 10);
   }, [done, choices, matrix]);
 
-  const nameOf = (id: string) => members.find(m => m.id === id)?.name || id;
+  const mepById = (id: string) => members.find(m => m.id === id);
+  const mepName = (id: string) => mepById(id)?.name || id;
+  const mepGroup = (id: string) => mepById(id)?.group || "—";
+  const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
 
-  // UI
   if (!total) {
     return (
       <main className="min-h-dvh flex items-center justify-center p-6">
@@ -82,7 +90,7 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-dvh flex flex-col p-6">
-      {/* Cabecera compacta */}
+      {/* Cabecera */}
       <header className="max-w-4xl w-full mx-auto mb-4 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
         <div className="text-sm font-medium">{answeredCount}/{total}</div>
@@ -101,27 +109,45 @@ export default function QuizPage() {
 
       {/* Contenido */}
       <section className="flex-1 grid place-items-center">
-        {/* Pantalla de RESULTADOS */}
+        {/* RESULTADOS */}
         {done ? (
           <div className="w-full max-w-3xl fade-in">
             <h2 className="text-2xl font-bold text-center mb-4">
               Tus resultados
             </h2>
+
             {top.length === 0 && (
               <p className="text-center opacity-80">
                 Responde al menos 5 preguntas para calcular afinidad.
               </p>
             )}
+
             <ul className="space-y-2">
-              {top.map(r => (
-                <li
-                  key={r.memberId}
-                  className="border border-white/20 rounded-xl p-3 flex items-center justify-between"
-                >
-                  <span>{nameOf(r.memberId)}</span>
-                  <span className="font-mono">{Math.round(r.affinity * 100)}%</span>
-                </li>
-              ))}
+              {top.map(r => {
+                const img = mepImage(r.memberId);
+                return (
+                  <li
+                    key={r.memberId}
+                    className="border border-white/20 rounded-xl p-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      {img && (
+                        <img
+                          src={img}
+                          alt={mepName(r.memberId)}
+                          className="w-10 h-10 rounded-full object-cover"
+                          loading="lazy"
+                        />
+                      )}
+                      <div>
+                        <div className="font-medium">{mepName(r.memberId)}</div>
+                        <div className="text-xs opacity-70">{mepGroup(r.memberId)}</div>
+                      </div>
+                    </div>
+                    <span className="font-mono">{Math.round(r.affinity * 100)}%</span>
+                  </li>
+                );
+              })}
             </ul>
 
             <div className="mt-6 flex items-center justify-between">
@@ -131,23 +157,34 @@ export default function QuizPage() {
               >
                 Volver atrás
               </button>
-              <a
-                href="/"
-                className="btn-eu"
-              >
-                Ir a inicio
-              </a>
+              <a href="/" className="btn-eu">Ir a inicio</a>
             </div>
           </div>
         ) : (
-          // Pantalla de PREGUNTA actual (una tarjeta centrada)
+          // PREGUNTA actual
           <div className="w-full max-w-3xl fade-in">
             <div className="border border-white/20 rounded-2xl p-5 bg-white/5 backdrop-blur">
               <div className="text-sm opacity-80 mb-1">
                 Pregunta {i + 1} de {total}
               </div>
+
               <h2 className="text-xl font-semibold">{current.title}</h2>
-              <div className="text-xs opacity-70">{current.date}{current.type ? ` · ${current.type}` : ""}</div>
+              <div className="text-xs opacity-70">
+                {current.date}{current.type ? ` · ${current.type}` : ""}
+                {current.url ? (
+                  <>
+                    {" · "}
+                    <a
+                      className="underline hover:opacity-80"
+                      href={current.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      fuente
+                    </a>
+                  </>
+                ) : null}
+              </div>
 
               <div className="mt-5 grid sm:grid-cols-3 gap-3">
                 <button
@@ -174,15 +211,16 @@ export default function QuizPage() {
                 <button
                   onClick={back}
                   disabled={i === 0}
-                  className={`px-4 py-2 rounded-lg transition ${i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"}`}
+                  className={`px-4 py-2 rounded-lg transition ${
+                    i === 0
+                      ? "bg-white/10 opacity-50 cursor-not-allowed"
+                      : "bg-white/10 hover:bg-white/15"
+                  }`}
                 >
                   Volver atrás
                 </button>
 
-                <button
-                  onClick={() => setDone(true)}
-                  className="btn-eu"
-                >
+                <button onClick={() => setDone(true)} className="btn-eu">
                   Ver resultados
                 </button>
               </div>
