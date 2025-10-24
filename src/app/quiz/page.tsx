@@ -8,20 +8,21 @@ type Member = {
   name: string;
   country: string | null;
   group?: string | null;
-  image?: string | null; // merge_meps.ts
+  image?: string | null;
   photo?: string | null;
 };
 
-type VoteRef = { id: string; url?: string | null }; // de votes_2025_main.es.json
+type VoteRef = { id: string; url?: string | null };
 
 type Question = {
-  qid?: string;                 // id interno del cuestionario (opcional)
-  id: string;                   // HTV/EP vote_id (para calcular afinidad)
-  q: string;                    // texto de la pregunta
-  queSeVota: string;            // explicación
-  aFavor: string;               // argumentos a favor
-  enContra: string;             // argumentos en contra
-  url?: string | null;          // fuente, si ya viene en el JSON
+  qid?: string;
+  id: string;            // debe existir en matrix.json
+  q?: string;            // enunciado (questions.es.json)
+  title?: string;        // fallback si viniera de votes_2025_main.es.json
+  queSeVota?: string;
+  aFavor?: string;
+  enContra?: string;
+  url?: string | null;
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -37,14 +38,13 @@ export default function QuizPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [matrix, setMatrix] = useState<Matrix>({});
-  const [votesIdx, setVotesIdx] = useState<Record<string, VoteRef>>({}); // para buscar url si falta
+  const [votesIdx, setVotesIdx] = useState<Record<string, VoteRef>>({});
 
   const [choices, setChoices] = useState<Record<string, number>>({}); // voteId -> +1|-1|0
-  const [i, setI] = useState(0); // índice de pregunta actual
+  const [i, setI] = useState(0);
   const [done, setDone] = useState(false);
-  const [expanded, setExpanded] = useState(false); // “Más información” abierto/cerrado
+  const [expanded, setExpanded] = useState(false);
 
-  // carga datos
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -57,33 +57,47 @@ export default function QuizPage() {
 
       if (!alive) return;
 
-      // Índice de votos para conseguir url si la pregunta no la trae
+      // índice para url oficial
       const vIdx: Record<string, VoteRef> = {};
       (votesEs as any[]).forEach(v => {
         vIdx[String(v.id)] = { id: String(v.id), url: v.url ?? null };
       });
 
-      // Normaliza preguntas, descarta sin id, baraja y corta a 10
+      // normaliza y completa url si falta
       const normalized = (q as Question[])
-        .map(x => ({
-          ...x,
-          id: String(x.id).trim(),
-          url: x.url ?? vIdx[String(x.id)]?.url ?? null,
-        }))
+        .map(x => {
+          const id = String(x.id ?? "").trim();
+          return {
+            ...x,
+            id,
+            url: x.url ?? vIdx[id]?.url ?? null,
+          };
+        })
         .filter(x => x.id);
 
+      // baraja y toma 10
+      const picked = shuffle(normalized).slice(0, 10);
+
       setVotesIdx(vIdx);
-      setQuestions(shuffle(normalized).slice(0, 10));
+      setQuestions(picked);
       setMembers(m);
       setMatrix(mat);
+
+      // debug mínimo en consola por si falta algo
+      console.log("[quiz] loaded", {
+        questions: picked.length,
+        members: (m as any[]).length,
+        votesInMatrix: Object.keys(mat || {}).length,
+      });
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
   const total = questions.length;
   const current = questions[i];
+
+  // enunciado con fallback
+  const questionText = current ? (current.q || current.title || "(sin texto)") : "";
 
   const answeredCount = useMemo(
     () => Object.keys(choices).filter(k => choices[k] !== undefined).length,
@@ -97,11 +111,9 @@ export default function QuizPage() {
 
   function pick(voteId: string, val: number) {
     setChoices(prev => ({ ...prev, [voteId]: val }));
-    // pasa automáticamente a la siguiente
     const nextIndex = i + 1;
     if (nextIndex < total) {
       setI(nextIndex);
-      // al cambiar de tarjeta, cerramos el desplegable por defecto
       setExpanded(false);
     } else {
       setDone(true);
@@ -121,11 +133,22 @@ export default function QuizPage() {
     }
   }
 
+  // solo puntuamos con votos que existan en matrix
+  const filteredChoices = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const [voteId, val] of Object.entries(choices)) {
+      if (matrix[voteId]) out[voteId] = val;
+    }
+    return out;
+  }, [choices, matrix]);
+
   // resultados solo al final
   const top = useMemo(() => {
     if (!done) return [];
-    return scoreMembers(choices, matrix).slice(0, 10);
-  }, [done, choices, matrix]);
+    // exige al menos 5 respuestas válidas para evitar ruido
+    if (Object.keys(filteredChoices).length < 5) return [];
+    return scoreMembers(filteredChoices, matrix).slice(0, 10);
+  }, [done, filteredChoices, matrix]);
 
   const mepById = (id: string) => members.find(m => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
@@ -145,9 +168,7 @@ export default function QuizPage() {
       {/* Cabecera */}
       <header className="max-w-4xl w-full mx-auto mb-4 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
-        <div className="text-sm font-medium">
-          {answeredCount}/{total}
-        </div>
+        <div className="text-sm font-medium">{answeredCount}/{total}</div>
       </header>
 
       {/* Progreso */}
@@ -168,39 +189,41 @@ export default function QuizPage() {
           <div className="w-full max-w-3xl fade-in">
             <h2 className="text-2xl font-bold text-center mb-4">Tus resultados</h2>
 
-            {top.length === 0 && (
+            {Object.keys(filteredChoices).length < 5 && (
               <p className="text-center opacity-80">
                 Responde al menos 5 preguntas para calcular afinidad.
               </p>
             )}
 
-            <ul className="space-y-2">
-              {top.map(r => {
-                const img = mepImage(r.memberId);
-                return (
-                  <li
-                    key={r.memberId}
-                    className="border border-white/20 rounded-xl p-3 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      {img && (
-                        <img
-                          src={img}
-                          alt={mepName(r.memberId)}
-                          className="w-10 h-10 rounded-full object-cover"
-                          loading="lazy"
-                        />
-                      )}
-                      <div>
-                        <div className="font-medium">{mepName(r.memberId)}</div>
-                        <div className="text-xs opacity-70">{mepGroup(r.memberId)}</div>
+            {top.length > 0 && (
+              <ul className="space-y-2">
+                {top.map(r => {
+                  const img = mepImage(r.memberId);
+                  return (
+                    <li
+                      key={r.memberId}
+                      className="border border-white/20 rounded-xl p-3 flex items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        {img && (
+                          <img
+                            src={img}
+                            alt={mepName(r.memberId)}
+                            className="w-10 h-10 rounded-full object-cover"
+                            loading="lazy"
+                          />
+                        )}
+                        <div>
+                          <div className="font-medium">{mepName(r.memberId)}</div>
+                          <div className="text-xs opacity-70">{mepGroup(r.memberId)}</div>
+                        </div>
                       </div>
-                    </div>
-                    <span className="font-mono">{Math.round(r.affinity * 100)}%</span>
-                  </li>
-                );
-              })}
-            </ul>
+                      <span className="font-mono">{Math.round(r.affinity * 100)}%</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
 
             <div className="mt-6 flex items-center justify-between">
               <button
@@ -209,9 +232,7 @@ export default function QuizPage() {
               >
                 Volver atrás
               </button>
-              <a href="/" className="btn-eu">
-                Ir a inicio
-              </a>
+              <a href="/" className="btn-eu">Ir a inicio</a>
             </div>
           </div>
         ) : (
@@ -222,7 +243,10 @@ export default function QuizPage() {
                 Pregunta {i + 1} de {total}
               </div>
 
-              <h2 className="text-xl font-semibold">{current.q}</h2>
+              {/* ENUNCIADO con fallback */}
+              <h2 className="text-xl font-semibold">
+                {questionText}
+              </h2>
 
               <div className="mt-5 grid sm:grid-cols-3 gap-3">
                 {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(
@@ -266,25 +290,31 @@ export default function QuizPage() {
                 Más información
               </button>
 
-              {/* Panel expandible */}
               {expanded && (
-                <div
-                  id="more-info"
-                  className="mt-4 border border-white/15 rounded-xl p-4 bg-white/5"
-                >
-                  <h3 className="font-medium mb-2">Qué se vota</h3>
-                  <p className="text-sm opacity-90 whitespace-pre-line">{current.queSeVota}</p>
+                <div id="more-info" className="mt-4 border border-white/15 rounded-xl p-4 bg-white/5">
+                  {current.queSeVota && (
+                    <>
+                      <h3 className="font-medium mb-2">Qué se vota</h3>
+                      <p className="text-sm opacity-90 whitespace-pre-line">{current.queSeVota}</p>
+                    </>
+                  )}
 
-                  <div className="mt-4 grid md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold mb-1">Argumentos a favor</h4>
-                      <p className="text-sm opacity-90 whitespace-pre-line">{current.aFavor}</p>
+                  {(current.aFavor || current.enContra) && (
+                    <div className="mt-4 grid md:grid-cols-2 gap-4">
+                      {current.aFavor && (
+                        <div>
+                          <h4 className="font-semibold mb-1">Argumentos a favor</h4>
+                          <p className="text-sm opacity-90 whitespace-pre-line">{current.aFavor}</p>
+                        </div>
+                      )}
+                      {current.enContra && (
+                        <div>
+                          <h4 className="font-semibold mb-1">Argumentos en contra</h4>
+                          <p className="text-sm opacity-90 whitespace-pre-line">{current.enContra}</p>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <h4 className="font-semibold mb-1">Argumentos en contra</h4>
-                      <p className="text-sm opacity-90 whitespace-pre-line">{current.enContra}</p>
-                    </div>
-                  </div>
+                  )}
 
                   {(current.url ?? votesIdx[current.id]?.url) && (
                     <div className="mt-3 text-sm">
@@ -306,9 +336,7 @@ export default function QuizPage() {
                   onClick={back}
                   disabled={i === 0}
                   className={`px-4 py-2 rounded-lg transition ${
-                    i === 0
-                      ? "bg-white/10 opacity-50 cursor-not-allowed"
-                      : "bg-white/10 hover:bg-white/15"
+                    i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"
                   }`}
                 >
                   Volver atrás
