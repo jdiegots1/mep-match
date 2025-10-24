@@ -3,45 +3,87 @@ import { useEffect, useMemo, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 
-type Vote = { id: string; title: string; date: string; type: string | null; url?: string | null };
 type Member = {
   id: string;
   name: string;
   country: string | null;
   group?: string | null;
-  image?: string | null;        // merge_meps.ts escribe "image"
-  photo?: string | null;        // por si viniera como "photo"
+  image?: string | null; // merge_meps.ts
+  photo?: string | null;
 };
 
+type VoteRef = { id: string; url?: string | null }; // de votes_2025_main.es.json
+
+type Question = {
+  qid?: string;                 // id interno del cuestionario (opcional)
+  id: string;                   // HTV/EP vote_id (para calcular afinidad)
+  q: string;                    // texto de la pregunta
+  queSeVota: string;            // explicación
+  aFavor: string;               // argumentos a favor
+  enContra: string;             // argumentos en contra
+  url?: string | null;          // fuente, si ya viene en el JSON
+};
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function QuizPage() {
-  const [votes, setVotes] = useState<Vote[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [matrix, setMatrix] = useState<Matrix>({});
-  const [choices, setChoices] = useState<Record<string, number>>({}); // +1|-1|0
+  const [votesIdx, setVotesIdx] = useState<Record<string, VoteRef>>({}); // para buscar url si falta
+
+  const [choices, setChoices] = useState<Record<string, number>>({}); // voteId -> +1|-1|0
   const [i, setI] = useState(0); // índice de pregunta actual
   const [done, setDone] = useState(false);
+  const [expanded, setExpanded] = useState(false); // “Más información” abierto/cerrado
 
   // carga datos
   useEffect(() => {
     let alive = true;
     (async () => {
-      const [v, m, mat] = await Promise.all([
-        // Usa el JSON con títulos en ES + url oficial
-        fetch("/data/votes_2025_main.es.json").then(r => r.json()).catch(() => []),
-        // Usa el JSON de miembros enriquecido (nombre normalizado, grupo, foto)
+      const [q, m, mat, votesEs] = await Promise.all([
+        fetch("/data/questions.es.json").then(r => r.json()).catch(() => []),
         fetch("/data/members.enriched.json").then(r => r.json()).catch(() => []),
         fetch("/data/matrix.json").then(r => r.json()).catch(() => ({})),
+        fetch("/data/votes_2025_main.es.json").then(r => r.json()).catch(() => []),
       ]);
+
       if (!alive) return;
-      setVotes((v as Vote[]).slice(0, 18)); // 15–20 preguntas para agilidad
+
+      // Índice de votos para conseguir url si la pregunta no la trae
+      const vIdx: Record<string, VoteRef> = {};
+      (votesEs as any[]).forEach(v => {
+        vIdx[String(v.id)] = { id: String(v.id), url: v.url ?? null };
+      });
+
+      // Normaliza preguntas, descarta sin id, baraja y corta a 10
+      const normalized = (q as Question[])
+        .map(x => ({
+          ...x,
+          id: String(x.id).trim(),
+          url: x.url ?? vIdx[String(x.id)]?.url ?? null,
+        }))
+        .filter(x => x.id);
+
+      setVotesIdx(vIdx);
+      setQuestions(shuffle(normalized).slice(0, 10));
       setMembers(m);
       setMatrix(mat);
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  const total = votes.length;
-  const current = votes[i];
+  const total = questions.length;
+  const current = questions[i];
 
   const answeredCount = useMemo(
     () => Object.keys(choices).filter(k => choices[k] !== undefined).length,
@@ -55,18 +97,28 @@ export default function QuizPage() {
 
   function pick(voteId: string, val: number) {
     setChoices(prev => ({ ...prev, [voteId]: val }));
+    // pasa automáticamente a la siguiente
     const nextIndex = i + 1;
-    if (nextIndex < total) setI(nextIndex);
-    else setDone(true);
+    if (nextIndex < total) {
+      setI(nextIndex);
+      // al cambiar de tarjeta, cerramos el desplegable por defecto
+      setExpanded(false);
+    } else {
+      setDone(true);
+    }
   }
 
   function back() {
     if (done && total > 0) {
       setDone(false);
       setI(total - 1);
+      setExpanded(false);
       return;
     }
-    if (i > 0) setI(i - 1);
+    if (i > 0) {
+      setI(i - 1);
+      setExpanded(false);
+    }
   }
 
   // resultados solo al final
@@ -93,7 +145,9 @@ export default function QuizPage() {
       {/* Cabecera */}
       <header className="max-w-4xl w-full mx-auto mb-4 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
-        <div className="text-sm font-medium">{answeredCount}/{total}</div>
+        <div className="text-sm font-medium">
+          {answeredCount}/{total}
+        </div>
       </header>
 
       {/* Progreso */}
@@ -112,9 +166,7 @@ export default function QuizPage() {
         {/* RESULTADOS */}
         {done ? (
           <div className="w-full max-w-3xl fade-in">
-            <h2 className="text-2xl font-bold text-center mb-4">
-              Tus resultados
-            </h2>
+            <h2 className="text-2xl font-bold text-center mb-4">Tus resultados</h2>
 
             {top.length === 0 && (
               <p className="text-center opacity-80">
@@ -157,7 +209,9 @@ export default function QuizPage() {
               >
                 Volver atrás
               </button>
-              <a href="/" className="btn-eu">Ir a inicio</a>
+              <a href="/" className="btn-eu">
+                Ir a inicio
+              </a>
             </div>
           </div>
         ) : (
@@ -168,44 +222,84 @@ export default function QuizPage() {
                 Pregunta {i + 1} de {total}
               </div>
 
-              <h2 className="text-xl font-semibold">{current.title}</h2>
-              <div className="text-xs opacity-70">
-                {current.date}{current.type ? ` · ${current.type}` : ""}
-                {current.url ? (
-                  <>
-                    {" · "}
-                    <a
-                      className="underline hover:opacity-80"
-                      href={current.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      fuente
-                    </a>
-                  </>
-                ) : null}
-              </div>
+              <h2 className="text-xl font-semibold">{current.q}</h2>
 
               <div className="mt-5 grid sm:grid-cols-3 gap-3">
-                <button
-                  className="px-4 py-3 rounded-xl bg-green-200/90 text-green-900 font-semibold hover:opacity-95 transition"
-                  onClick={() => pick(current.id, 1)}
-                >
-                  A favor
-                </button>
-                <button
-                  className="px-4 py-3 rounded-xl bg-red-200/90 text-red-900 font-semibold hover:opacity-95 transition"
-                  onClick={() => pick(current.id, -1)}
-                >
-                  En contra
-                </button>
-                <button
-                  className="px-4 py-3 rounded-xl bg-gray-200/90 text-gray-900 font-semibold hover:opacity-95 transition"
-                  onClick={() => pick(current.id, 0)}
-                >
-                  Abstención
-                </button>
+                {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(
+                  ([label, val]) => {
+                    const isActive = choices[current.id] === val;
+                    const base =
+                      val === 1
+                        ? "bg-green-200/90 text-green-900"
+                        : val === -1
+                        ? "bg-red-200/90 text-red-900"
+                        : "bg-gray-200/90 text-gray-900";
+                    return (
+                      <button
+                        key={label}
+                        className={`px-4 py-3 rounded-xl font-semibold hover:opacity-95 transition border ${
+                          isActive ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"
+                        } ${base}`}
+                        onClick={() => pick(current.id, val)}
+                        aria-pressed={isActive}
+                      >
+                        {label}
+                      </button>
+                    );
+                  }
+                )}
               </div>
+
+              {/* Toggle “Más información” */}
+              <button
+                className="mt-4 w-full flex items-center justify-center gap-2 text-sm underline hover:opacity-80"
+                onClick={() => setExpanded(e => !e)}
+                aria-expanded={expanded}
+                aria-controls="more-info"
+              >
+                <span
+                  className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                  aria-hidden="true"
+                >
+                  ▼
+                </span>
+                Más información
+              </button>
+
+              {/* Panel expandible */}
+              {expanded && (
+                <div
+                  id="more-info"
+                  className="mt-4 border border-white/15 rounded-xl p-4 bg-white/5"
+                >
+                  <h3 className="font-medium mb-2">Qué se vota</h3>
+                  <p className="text-sm opacity-90 whitespace-pre-line">{current.queSeVota}</p>
+
+                  <div className="mt-4 grid md:grid-cols-2 gap-4">
+                    <div>
+                      <h4 className="font-semibold mb-1">Argumentos a favor</h4>
+                      <p className="text-sm opacity-90 whitespace-pre-line">{current.aFavor}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold mb-1">Argumentos en contra</h4>
+                      <p className="text-sm opacity-90 whitespace-pre-line">{current.enContra}</p>
+                    </div>
+                  </div>
+
+                  {(current.url ?? votesIdx[current.id]?.url) && (
+                    <div className="mt-3 text-sm">
+                      <a
+                        className="underline hover:opacity-80"
+                        href={(current.url ?? votesIdx[current.id]?.url)!}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Fuente oficial
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="mt-6 flex items-center justify-between">
                 <button
