@@ -58,9 +58,9 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<Mode>("coverage");
 
-  // Embla + refs para medir viewport/track
+  // ==== Embla: viewport y slide width en PX (NO vw)
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const trackRef = useRef<HTMLDivElement | null>(null);
+  const [slideW, setSlideW] = useState(0); // anchura exacta de cada slide en px
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
@@ -71,7 +71,7 @@ export default function QuizPage() {
     startIndex: 0,
   });
 
-  // Pasar ref del viewport a Embla
+  // Pasar ref del viewport a Embla y guardarlo para medir
   const setViewport = useCallback(
     (el: HTMLDivElement | null) => {
       viewportRef.current = el;
@@ -80,31 +80,35 @@ export default function QuizPage() {
     [emblaRef]
   );
 
-  const [index, setIndex] = useState(0);
-  const total = questions.length;
-
-  // ======= Cálculo del padding lateral (spacers) =======
-  // slide = w-[86vw] con max-w-3xl (48rem = 768px)
-  const SLIDE_VW = 0.86;
-  const SLIDE_MAX_PX = 768;
-
-  const [sidePad, setSidePad] = useState(0);
-
-  const recalcSidePad = useCallback(() => {
+  // Recalcular anchura de slide usando el ancho REAL del viewport (clientWidth)
+  const recalcSlideWidth = useCallback(() => {
     const vp = viewportRef.current;
     if (!vp) return;
-    const vpW = vp.clientWidth || window.innerWidth;
-    const slideW = Math.min(vpW * SLIDE_VW, SLIDE_MAX_PX);
-    const pad = Math.max((vpW - slideW) / 2, 0);
-    setSidePad(pad);
+
+    // Queremos el mismo diseño que tenías: 86% del viewport con tope 48rem.
+    // Pero lo calculamos en PX sobre clientWidth, no sobre 'vw'.
+    const MAX = 768; // 48rem
+    const target = Math.min(vp.clientWidth * 0.86, MAX);
+    setSlideW(Math.round(target));
   }, []);
 
   useEffect(() => {
-    recalcSidePad();
-    const onResize = () => recalcSidePad();
+    recalcSlideWidth();
+    const onResize = () => recalcSlideWidth();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [recalcSidePad]);
+  }, [recalcSlideWidth]);
+
+  // Vuelve a inicializar Embla cuando cambia slideW para que recalcule snaps
+  useEffect(() => {
+    if (!emblaApi || !slideW) return;
+    emblaApi.reInit();
+    // Coloca al inicio sin animación en el siguiente frame
+    requestAnimationFrame(() => emblaApi.scrollTo(0, true));
+  }, [emblaApi, slideW]);
+
+  const [index, setIndex] = useState(0);
+  const total = questions.length;
 
   // UI / resultados
   const [entered, setEntered] = useState(false);
@@ -158,13 +162,17 @@ export default function QuizPage() {
       setIndex(0);
       setDone(false);
 
-      requestAnimationFrame(() => setEntered(true));
+      // asegura cálculos de layout antes de animar
+      requestAnimationFrame(() => {
+        recalcSlideWidth();
+        setEntered(true);
+      });
     })();
 
     return () => {
       alive = false;
     };
-  }, []);
+  }, [recalcSlideWidth]);
 
   // Sincronizar índice con Embla
   const onSelect = useCallback((api: EmblaCarouselType) => {
@@ -174,21 +182,11 @@ export default function QuizPage() {
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", () => onSelect(emblaApi));
-    emblaApi.on("reInit", () => {
-      recalcSidePad();
-      onSelect(emblaApi);
-    });
+    emblaApi.on("reInit", () => onSelect(emblaApi));
+    // Centrar 1ª slide al montar
     emblaApi.scrollTo(0, true);
     setTimeout(() => emblaApi.scrollTo(0, true), 0);
-  }, [emblaApi, onSelect, recalcSidePad]);
-
-  // Recalcular cuando haya slides
-  useEffect(() => {
-    if (!emblaApi || total === 0) return;
-    recalcSidePad();
-    emblaApi.reInit();
-    requestAnimationFrame(() => emblaApi.scrollTo(0, true));
-  }, [emblaApi, total, recalcSidePad]);
+  }, [emblaApi, onSelect]);
 
   // Navegación determinista
   const goTo = useCallback(
@@ -318,7 +316,7 @@ export default function QuizPage() {
               ›
             </button>
 
-            {/* Viewport Embla (full-bleed) */}
+            {/* Viewport Embla full-bleed */}
             <div
               className="overflow-hidden"
               style={{
@@ -328,65 +326,66 @@ export default function QuizPage() {
               }}
               ref={setViewport}
             >
-              {/* Track con gap + spacers laterales dinámicos */}
-              <div ref={trackRef} className="flex items-stretch gap-10 md:gap-16 py-4">
-                {/* Spacer izquierdo */}
-                <div aria-hidden style={{ flex: `0 0 ${sidePad}px` }} />
+              {/* Track sin gap (para no afectar snaps) */}
+              <div className="flex items-stretch py-4">
                 {questions.map((q, idx) => {
                   const active = idx === index;
                   const answered = choices[q.id] !== undefined;
 
                   return (
+                    // La slide tiene ancho EXACTO en PX -> Embla centra siempre.
                     <div
                       key={q.id}
-                      className={`flex-none w-[86vw] max-w-3xl select-none transition-all duration-300 ${
+                      className={`flex-none select-none transition-all duration-300 ${
                         active ? "opacity-100 scale-100" : "opacity-35 scale-[0.97]"
                       }`}
+                      style={{ flex: `0 0 ${slideW || 1}px` }}
                       aria-hidden={!active}
                     >
-                      {/* Enunciado */}
-                      <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug mb-4">
-                        {q.q}
-                      </h2>
+                      {/* Wrapper interior solo para espaciado visual, NO afecta snap */}
+                      <div className="mx-6 md:mx-10">
+                        {/* Enunciado */}
+                        <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug mb-4">
+                          {q.q}
+                        </h2>
 
-                      {/* Tarjeta de acciones */}
-                      <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
-                        <div className="grid grid-cols-3 gap-3">
-                          {([
-                            ["A favor", 1, "bg-green-200/90 text-green-900"],
-                            ["En contra", -1, "bg-red-200/90 text-red-900"],
-                            ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
-                          ] as const).map(([label, val, base]) => {
-                            const pressed = choices[q.id] === val;
-                            return (
-                              <button
-                                key={label}
-                                className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold hover:opacity-95 transition border ${base} ${
-                                  pressed
-                                    ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
-                                    : "border-transparent"
-                                }`}
-                                onClick={() => vote(q.id, val)}
-                                aria-pressed={pressed}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        {/* Tarjeta de acciones */}
+                        <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
+                          <div className="grid grid-cols-3 gap-3">
+                            {([
+                              ["A favor", 1, "bg-green-200/90 text-green-900"],
+                              ["En contra", -1, "bg-red-200/90 text-red-900"],
+                              ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
+                            ] as const).map(([label, val, base]) => {
+                              const pressed = choices[q.id] === val;
+                              return (
+                                <button
+                                  key={label}
+                                  className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold hover:opacity-95 transition border ${base} ${
+                                    pressed
+                                      ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
+                                      : "border-transparent"
+                                  }`}
+                                  onClick={() => vote(q.id, val)}
+                                  aria-pressed={pressed}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
 
-                        <div className="mt-4 flex items-center justify-between gap-3">
-                          <InfoDialog q={q} />
-                          <div className="text-xs md:text-sm opacity-70">
-                            {answered ? "Podés modificar tu respuesta" : "Elegí una opción"}
+                          <div className="mt-4 flex items-center justify-between gap-3">
+                            <InfoDialog q={q} />
+                            <div className="text-xs md:text-sm opacity-70">
+                              {answered ? "Podés modificar tu respuesta" : "Elegí una opción"}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
                   );
                 })}
-                {/* Spacer derecho */}
-                <div aria-hidden style={{ flex: `0 0 ${sidePad}px` }} />
               </div>
             </div>
 
@@ -447,7 +446,7 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               )}
 
-              <div className="transition-opacity duration-200 opacity-100" />
+              {/* render de tarjetas como lo tenías (omitido por brevedad) */}
 
               <div className="mt-6 flex items-center justify-between">
                 <button
