@@ -171,33 +171,64 @@ export default function QuizPage() {
 
   const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
+  const allMemberIds = useMemo(() => {
+  const set = new Set<string>();
+  Object.values(matrix).forEach((row) => {
+    if (row && typeof row === "object") {
+      Object.keys(row as Record<string, number | undefined>).forEach((mid) => set.add(mid));
+    }
+  });
+  // opcional: cruza con la lista de members para quedarte con los que conoces
+  return Array.from(set).filter((id) => members.some((m) => m.id === id));
+}, [matrix, members]);
+
+const scoreMap = useMemo(() => {
+  const map = new Map<string, number>();
+  computeScores.forEach((s) => map.set(s.memberId, s.affinity));
+  return map;
+}, [computeScores]);
+
   // Ranking con filtro + empates comprimidos (1º grupo=1, siguiente grupo=2, etc.)
   const rankedAll = useMemo(() => {
     if (!done) return [];
+
+    // base: todos con affinity (o 0)
+    let base = allMemberIds.map((id) => ({
+        memberId: id,
+        affinity: scoreMap.get(id) ?? 0,
+    }));
+
+    // filtro búsqueda
     const q = search.trim().toLowerCase();
+    if (q) {
+        base = base.filter(({ memberId }) => {
+        const m = members.find((mm) => mm.id === memberId);
+        const name = m?.name?.toLowerCase() ?? "";
+        const group = m?.group?.toLowerCase() ?? "";
+        const country = m?.country?.toLowerCase() ?? "";
+        return name.includes(q) || group.includes(q) || country.includes(q);
+        });
+    }
 
-    let arr = computeScores.filter((s) => {
-      if (!q) return true;
-      const m = members.find((mm) => mm.id === s.memberId);
-      const name = m?.name?.toLowerCase() ?? "";
-      const group = m?.group?.toLowerCase() ?? "";
-      const country = m?.country?.toLowerCase() ?? "";
-      return name.includes(q) || group.includes(q) || country.includes(q);
-    });
+    // orden por afinidad desc
+    base.sort((a, b) => b.affinity - a.affinity);
 
+    // agrupar empates por porcentaje mostrado (2 decimales) y rank comprimido 1,2,3...
     let lastPct: number | null = null;
     let rankNumber = 0;
-    return arr.map((s, i) => {
-      const pct = Number((s.affinity * 100).toFixed(2));
-      const isNewGroup = lastPct === null || pct !== lastPct;
-      if (isNewGroup) {
+
+    return base.map((s, i) => {
+        const pct = Number((s.affinity * 100).toFixed(2));
+        const isNewGroup = lastPct === null || pct !== lastPct;
+        if (isNewGroup) {
         rankNumber += 1;
         lastPct = pct;
-      }
-      const prevPct = i > 0 ? Number((arr[i - 1].affinity * 100).toFixed(2)) : null;
-      const showPos = i === 0 || pct !== prevPct;
-      const m = members.find((mm) => mm.id === s.memberId);
-      return {
+        }
+        const prevPct = i > 0 ? Number((base[i - 1].affinity * 100).toFixed(2)) : null;
+        const showPos = i === 0 || pct !== prevPct;
+
+        const m = members.find((mm) => mm.id === s.memberId);
+        return {
         memberId: s.memberId,
         pct,
         pos: rankNumber,
@@ -206,9 +237,9 @@ export default function QuizPage() {
         group: m?.group ?? "—",
         country: m?.country ?? "—",
         image: m?.image ?? m?.photo ?? null,
-      };
+        };
     });
-  }, [done, computeScores, search, members]);
+    }, [done, allMemberIds, scoreMap, members, search]);
 
   const mepById = (id: string) => members.find((m) => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
@@ -340,13 +371,13 @@ export default function QuizPage() {
           </motion.section>
         ) : (
           <motion.section
-            key={`results-${mode}`}
+            key="results"
             className="flex-1 w-full"
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
-          >
+            >
             <div className="w-full max-w-6xl mx-auto">
               {/* Encabezado estático (no cambia con la key del modo) */}
               <div className="mb-4 flex items-center justify-between gap-3 px-2">
@@ -379,12 +410,12 @@ export default function QuizPage() {
                 <>
                   <AnimatePresence mode="wait">
                     <motion.div
-                      key={mode}
-                      initial={{ opacity: 0, x: 16 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -16 }}
-                      transition={{ duration: 0.22 }}
-                      className="min-h-[80vh] flex flex-col items-center justify-center px-2"
+                        key={mode} // ← solo cambian las tarjetas
+                        initial={{ opacity: 0, x: 16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -16 }}
+                        transition={{ duration: 0.22 }}
+                        className="flex flex-col items-center justify-center px-2"
                     >
                       {(() => {
                         const top3 = top.slice(0, 3);
@@ -478,15 +509,15 @@ export default function QuizPage() {
                   </AnimatePresence>
 
                   {/* CTA ESTÁTICO (no entra en la transición por modo) */}
-                  <div className="text-center mt-8">
+                  <div className="text-center mt-6">
                     <span
-                      onClick={smoothScrollToRanking}
-                      className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
-                      role="button"
+                        onClick={smoothScrollToRanking}
+                        className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
+                        role="button"
                     >
-                      Mira tus coincidencias con todos los eurodiputados
+                        Mira tus coincidencias con todos los eurodiputados
                     </span>
-                  </div>
+                    </div>
 
                   {/* Ranking de coincidencia */}
                   <div ref={rankingRef} className="mt-24 px-2">
@@ -566,7 +597,8 @@ export default function QuizPage() {
       </AnimatePresence>
 
       {/* Barra inferior fija */}
-      <div className="fixed left-0 right-0 bottom-0 z-30 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
+      <div className="fixed left-0 right-0 bottom-0 z-50 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
+
         {/* Transición suave entre estados de botones */}
         <AnimatePresence initial={false} mode="wait">
           {!overlayOpen ? (
@@ -680,22 +712,23 @@ function InfoDialog({
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay asChild>
-          <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          />
-        </Dialog.Overlay>
+            <motion.div
+                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+            />
+            </Dialog.Overlay>
+
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
-                       rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-                       shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
+            className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
+             rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
+             shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
           >
             <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
@@ -708,17 +741,17 @@ function InfoDialog({
 
             {/* Enlace centrado antes de argumentos */}
             {q.url && (
-              <div className="mt-4 mb-2 text-sm text-center">
-                <a
-                  className="inline-block underline hover:opacity-80 cursor-pointer"
-                  href={q.url!}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Ampliar información
-                </a>
-              </div>
-            )}
+                <div className="mt-4 mb-2 text-sm text-center">
+                    <a
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition cursor-pointer"
+                    href={q.url!}
+                    target="_blank"
+                    rel="noreferrer"
+                    >
+                    Ampliar información
+                    </a>
+                </div>
+                )}
 
             {(q.aFavor?.length || q.enContra?.length) ? (
               <div className="mt-5 grid md:grid-cols-2 gap-6">
