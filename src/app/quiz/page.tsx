@@ -48,6 +48,17 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+const labelFromVal = (v: number | undefined) =>
+  v === 1 ? "A favor" : v === -1 ? "En contra" : v === 0 ? "Abstención" : "Ausente";
+const colorFromVal = (v: number | undefined) =>
+  v === 1
+    ? "bg-green-600"
+    : v === -1
+    ? "bg-red-600"
+    : v === 0
+    ? "bg-yellow-500"
+    : "bg-gray-500";
+
 /* ====================== Página ====================== */
 export default function QuizPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -63,6 +74,10 @@ export default function QuizPage() {
 
   // hover para atenuar otras opciones
   const [hoverVal, setHoverVal] = useState<number | null>(null);
+
+  // ranking state
+  const [search, setSearch] = useState("");
+  const [detailFor, setDetailFor] = useState<string | null>(null);
 
   const total = questions.length;
   const current = questions[index];
@@ -131,8 +146,13 @@ export default function QuizPage() {
 
   const vote = (qId: string, val: number) => {
     setChoices((prev) => ({ ...prev, [qId]: val }));
-    if (index < total - 1) setIndex((i) => i + 1);
     setHoverVal(null);
+    if (index < total - 1) {
+      setIndex((i) => i + 1);
+    } else {
+      // última ⇒ ir a resultados
+      setDone(true);
+    }
   };
 
   const filteredChoices = useMemo(() => {
@@ -143,18 +163,44 @@ export default function QuizPage() {
     return out;
   }, [choices, matrix]);
 
-  const top = useMemo(() => {
-    if (!done) return [];
+  const computeScores = useMemo(() => {
     if (Object.keys(filteredChoices).length < 5) return [];
     return scoreMembers(filteredChoices, matrix, {
       coveragePenalty: mode === "coverage",
       minOverlap: 5,
-    }).slice(0, 10);
-  }, [done, filteredChoices, matrix, mode]);
+    });
+  }, [filteredChoices, matrix, mode]);
+
+  const top = useMemo(() => {
+    if (!done) return [];
+    return computeScores.slice(0, 10);
+  }, [done, computeScores]);
+
+  const rankedAll = useMemo(() => {
+    if (!done) return [];
+    const q = search.trim().toLowerCase();
+    const list = computeScores.map((s, i) => ({
+      pos: i + 1,
+      ...s,
+    }));
+    if (!q) return list;
+    return list.filter((x) => {
+      const m = members.find((mm) => mm.id === x.memberId);
+      const name = m?.name?.toLowerCase() ?? "";
+      const group = m?.group?.toLowerCase() ?? "";
+      const country = m?.country?.toLowerCase() ?? "";
+      return (
+        name.includes(q) ||
+        group.includes(q) ||
+        country.includes(q)
+      );
+    });
+  }, [done, computeScores, search, members]);
 
   const mepById = (id: string) => members.find((m) => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
   const mepGroup = (id: string) => mepById(id)?.group || "—";
+  const mepCountry = (id: string) => mepById(id)?.country || "—";
   const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
 
   if (!total) {
@@ -250,7 +296,6 @@ export default function QuizPage() {
                           hoverVal !== val;
                         const dim = dimBecauseSelected || dimBecauseHover;
 
-                        // Colores base (oscuro + blanco siempre para favor/contra; gris oscuro para abstención)
                         const baseDefault =
                           color === "green"
                             ? "bg-green-700 text-white"
@@ -277,7 +322,6 @@ export default function QuizPage() {
                       })}
                     </div>
 
-                    {/* (se quita el texto de ayuda) */}
                     <div className="mt-5">
                       <InfoDialog q={current} onOpenChange={setInfoOpen} />
                     </div>
@@ -291,13 +335,13 @@ export default function QuizPage() {
         ) : (
           <motion.section
             key="results"
-            className="flex-1 grid place-items-center w-full"
+            className="flex-1 w-full"
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="w-full max-w-3xl">
+            <div className="w-full max-w-3xl mx-auto">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
 
@@ -322,18 +366,11 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {Object.keys(filteredChoices).length < 5 && (
+              {/* Top 3 */}
+              {computeScores.length < 5 ? (
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
-              )}
-
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={mode}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.2 }}
-                >
+              ) : (
+                <>
                   {(() => {
                     const top3 = top.slice(0, 3);
                     const pct = (x: number) => Number((x * 100).toFixed(2));
@@ -341,7 +378,7 @@ export default function QuizPage() {
                     const WinnerCard = ({ id, p }: { id: string; p: number }) => {
                       const img = mepImage(id);
                       return (
-                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6">
+                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6 mb-4">
                           <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-1 rounded-md font-semibold">
                             Tu mejor coincidencia
                           </span>
@@ -360,7 +397,9 @@ export default function QuizPage() {
                             )}
                             <div className="flex-1">
                               <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
-                              <div className="text-xs md:text-sm opacity-75">{mepGroup(id)}</div>
+                              <div className="text-xs md:text-sm opacity-75">
+                                {mepGroup(id)} • {mepCountry(id)}
+                              </div>
                             </div>
                             <div className="text-right">
                               <div className="text-3xl md:text-5xl font-black leading-none">{p.toFixed(2)}%</div>
@@ -385,25 +424,57 @@ export default function QuizPage() {
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="font-medium truncate">{mepName(id)}</div>
-                            <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
+                            <div className="text-xs opacity-70 truncate">{mepGroup(id)} • {mepCountry(id)}</div>
                           </div>
                           <div className="font-mono">{p.toFixed(2)}%</div>
                         </div>
                       );
                     };
 
-                    return top.length > 0 ? (
-                      <div className="space-y-4">
-                        <WinnerCard id={top3[0].memberId} p={pct(top3[0].affinity)} />
+                    return (
+                      <>
+                        {top3[0] && <WinnerCard id={top3[0].memberId} p={top3[0].affinity * 100} />}
                         <div className="grid sm:grid-cols-2 gap-3">
-                          {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={pct(top3[1].affinity)} />}
-                          {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={pct(top3[2].affinity)} />}
+                          {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
+                          {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
                         </div>
-                      </div>
-                    ) : null;
+                      </>
+                    );
                   })()}
-                </motion.div>
-              </AnimatePresence>
+
+                  {/* Ranking de coincidencia */}
+                  <div className="mt-10">
+                    <h3 className="text-xl font-semibold mb-3">Ranking de coincidencia</h3>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar por nombre, grupo o país…"
+                      className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-3"
+                    />
+                    <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5">
+                      {rankedAll.slice(0, 200).map((r) => {
+                        const m = mepById(r.memberId);
+                        return (
+                          <div key={r.memberId} className="flex items-center gap-3 px-4 py-2">
+                            <div className="w-8 text-center font-semibold">{r.pos}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{m?.name ?? r.memberId}</div>
+                              <div className="text-xs opacity-70 truncate">{m?.group ?? "—"} • {m?.country ?? "—"}</div>
+                            </div>
+                            <div className="w-24 text-right font-mono">{(r.affinity * 100).toFixed(2)}%</div>
+                            <button
+                              onClick={() => setDetailFor(r.memberId)}
+                              className="ml-3 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 transition text-sm"
+                            >
+                              Ver detalle
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="h-[140px]" />
             </div>
@@ -444,11 +515,24 @@ export default function QuizPage() {
           Ver resultados
         </button>
       </div>
+
+      {/* Modal detalle comparativa */}
+      <DetailDialog
+        open={!!detailFor}
+        onOpenChange={(o) => !o && setDetailFor(null)}
+        memberId={detailFor}
+        questions={questions}
+        choices={filteredChoices}
+        matrix={matrix}
+        mepName={mepName}
+        mepGroup={mepGroup}
+        mepCountry={mepCountry}
+      />
     </main>
   );
 }
 
-/* ====================== Componentes auxiliares ====================== */
+/* ====================== Modales ====================== */
 
 function InfoDialog({
   q,
@@ -473,10 +557,25 @@ function InfoDialog({
         >
           <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
+          {/* Descripción */}
           {q.queSeVota ? (
             <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
           ) : (
             <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
+          )}
+
+          {/* Enlace centrado antes de argumentos */}
+          {q.url && (
+            <div className="mt-4 mb-2 text-sm text-center">
+              <a
+                className="inline-block underline hover:opacity-80 cursor-pointer"
+                href={q.url!}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ampliar información
+              </a>
+            </div>
           )}
 
           {(q.aFavor?.length || q.enContra?.length) ? (
@@ -488,11 +587,11 @@ function InfoDialog({
                       Argumentos a favor
                     </span>
                   </div>
-                  <ul className="list-disc pl-5 text-sm opacity-90 space-y-2 text-justify">
+                  <div className="space-y-2 text-sm opacity-90 text-justify">
                     {q.aFavor.map((t, i) => (
-                      <li key={i}>{t}</li>
+                      <p key={i}>{t}</p>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : null}
 
@@ -503,23 +602,107 @@ function InfoDialog({
                       Argumentos en contra
                     </span>
                   </div>
-                  <ul className="list-disc pl-5 text-sm opacity-90 space-y-2 text-justify">
+                  <div className="space-y-2 text-sm opacity-90 text-justify">
                     {q.enContra.map((t, i) => (
-                      <li key={i}>{t}</li>
+                      <p key={i}>{t}</p>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          {q.url && (
-            <div className="mt-5 text-sm">
-              <a className="underline hover:opacity-80 cursor-pointer" href={q.url!} target="_blank" rel="noreferrer">
-                Fuente oficial
-              </a>
+          <Dialog.Close asChild>
+            <button
+              className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
+              aria-label="Cerrar"
+            >
+              Cerrar
+            </button>
+          </Dialog.Close>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function DetailDialog({
+  open,
+  onOpenChange,
+  memberId,
+  questions,
+  choices,
+  matrix,
+  mepName,
+  mepGroup,
+  mepCountry,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  memberId: string | null;
+  questions: Question[];
+  choices: Record<string, number>;
+  matrix: Matrix;
+  mepName: (id: string) => string;
+  mepGroup: (id: string) => string;
+  mepCountry: (id: string) => string;
+}) {
+  if (!memberId) return null;
+
+  const rows = questions
+    .filter((q) => matrix[q.id]) // sólo preguntas con matriz
+    .map((q) => {
+      // voto del MEP según matriz; undefined => ausencia
+      const mepVote = (matrix as any)[q.id]?.[memberId] as number | undefined;
+      const myVote = choices[q.id]; // puede ser undefined si no respondí esa (aunque en este flujo, suelen estar)
+
+      return {
+        id: q.id,
+        q: q.q,
+        myVote,
+        mepVote,
+      };
+    });
+
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
+                     rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
+                     shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
+        >
+          <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
+            Comparativa de votos — {mepName(memberId)} <span className="opacity-70">({mepGroup(memberId)} • {mepCountry(memberId)})</span>
+          </Dialog.Title>
+
+          <div className="rounded-xl border border-white/15 overflow-hidden">
+            <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
+              <div className="px-3 py-2 font-semibold">Pregunta</div>
+              <div className="px-3 py-2 font-semibold text-center">Tú</div>
+              <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
             </div>
-          )}
+            <div className="divide-y divide-white/10">
+              {rows.map((r) => (
+                <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
+                  <div className="px-3 py-2 text-sm">{r.q}</div>
+                  <div className="px-3 py-2 flex items-center justify-center">
+                    <span
+                      className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`}
+                      title={labelFromVal(r.myVote)}
+                    />
+                  </div>
+                  <div className="px-3 py-2 flex items-center justify-center">
+                    <span
+                      className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`}
+                      title={labelFromVal(r.mepVote)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <Dialog.Close asChild>
             <button
