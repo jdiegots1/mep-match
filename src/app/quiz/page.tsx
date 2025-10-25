@@ -256,14 +256,14 @@ export default function QuizPage() {
       base = base.filter(({ memberId }) => {
         const m = members.find((mm) => mm.id === memberId);
         const name = m?.name?.toLowerCase() ?? "";
-               const group = m?.group?.toLowerCase() ?? "";
+        const group = m?.group?.toLowerCase() ?? "";
         const country = m?.country?.toLowerCase() ?? "";
         return name.includes(q) || group.includes(q) || country.includes(q);
       });
     }
 
-    // seguimos agrupando por % para mostrar el número solo al primero del grupo (en la lista filtrada),
-    // pero el número mostrado es SIEMPRE la posición global real
+    // en la lista filtrada agrupamos por % solo para mostrar un # por grupo;
+    // el número mostrado es SIEMPRE la posición global real
     let lastPctInFiltered: number | null = null;
 
     return base.map((s) => {
@@ -301,18 +301,6 @@ export default function QuizPage() {
 
   const overlayOpen = infoOpen || !!detailFor;
 
-  // ===== PROGRESO VERTICAL (estado por pregunta) =====
-  const progressList = useMemo(() => {
-    return questions.map((q, i) => {
-      const v = choices[q.id];
-      const color =
-        v === 1 ? "bg-green-600" : v === -1 ? "bg-red-600" : v === 0 ? "bg-amber-500" : "bg-gray-500";
-      const label =
-        v === 1 ? "A favor" : v === -1 ? "En contra" : v === 0 ? "Abstención" : "Sin responder";
-      return { index: i + 1, color, label };
-    });
-  }, [questions, choices]);
-
   if (!total) {
     return (
       <main className="min-h-dvh grid place-items-center p-6">
@@ -327,25 +315,6 @@ export default function QuizPage() {
         entered ? "opacity-100" : "opacity-0"
       }`}
     >
-      {/* Panel de progreso vertical (solo durante el quiz, en pantallas md+) */}
-      {!done && (
-        <div
-          aria-label="Progreso del cuestionario"
-          className="hidden md:flex fixed left-3 top-1/2 -translate-y-1/2 flex-col gap-2 z-[80]"
-        >
-          {progressList.map((p, idx) => (
-            <div
-              key={idx}
-              className={`flex items-center gap-2 px-2 py-1 rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm`}
-              title={`${p.label} — Pregunta ${p.index}`}
-            >
-              <span className="text-xs tabular-nums w-6 text-center opacity-80">{p.index}</span>
-              <span className={`h-3 w-5 rounded-full ${p.color}`} aria-hidden />
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Cabecera */}
       <header className="max-w-5xl w-full mx-auto mb-2 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
@@ -392,8 +361,8 @@ export default function QuizPage() {
 
               {/* Respuestas */}
               <div className="row-start-2 row-end-3">
-                <div className="max-w-3xl mx-auto mt-14 md:mt-16">
-                  <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
+                <div className="max-w-3xl mx-auto mt-10 md:mt-16">
+                  <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-4 md:p-6">
                     <div
                       className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${
                         hoverVal !== null && choices[current.id] === undefined ? "group" : ""
@@ -443,7 +412,8 @@ export default function QuizPage() {
                     </div>
                   </div>
 
-                  <div className="h-[140px]" />
+                  {/* Espacio inferior grande en móvil para que nada quede oculto tras la barra fija */}
+                  <div className="h-[32vh] sm:h-[140px]" />
                 </div>
               </div>
             </div>
@@ -482,7 +452,7 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Top-3 con transición */}
+              {/* Top-3 */}
               {computeScores.length < 5 ? (
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
@@ -494,7 +464,7 @@ export default function QuizPage() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -16 }}
                       transition={{ duration: 0.22 }}
-                      className="min-h-[75vh] flex flex-col items-center justify-center px-2"
+                      className="min-h-[70vh] flex flex-col items-center justify-center px-2"
                     >
                       {(() => {
                         const top3 = top.slice(0, 3);
@@ -509,31 +479,32 @@ export default function QuizPage() {
                         const WinnerCard = ({ id, p }: { id: string; p: number }) => {
                           const img = mepImage(id);
                           return (
-                            <div className="w-full max-w-3xl relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-6 md:p-8 mb-6">
+                            <div className="w-full max-w-3xl relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-5 md:p-8 mb-6">
                               <span className="absolute top-4 left-4 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2.5 py-1 rounded-md font-semibold">
                                 Tu mejor coincidencia
                               </span>
-                              <div className="flex items-center gap-5 md:gap-6">
+                              <div className="flex items-center gap-4 md:gap-6">
                                 {img ? (
                                   <img
                                     src={img}
                                     alt={mepName(id)}
-                                    className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover ring-2 ring-white/40"
+                                    className="w-16 h-16 md:w-28 md:h-28 rounded-full object-cover ring-2 ring-white/40"
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-4xl">👤</div>
+                                  <div className="w-16 h-16 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-2xl md:text-4xl">👤</div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-2xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
-                                  <div className="text-sm md:text-base opacity-80 truncate">{mepGroup(id)}</div>
-                                  <div className="text-xs md:text-sm opacity-70 truncate">{mepCountry(id)}</div>
+                                  {/* Nombre visible en móvil */}
+                                  <div className="text-xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
+                                  <div className="text-xs md:text-base opacity-80 truncate">{mepGroup(id)}</div>
+                                  <div className="text-[11px] md:text-sm opacity-70 truncate">{mepCountry(id)}</div>
                                   <GhostButton onClick={() => setDetailFor(id)} className="mt-3">
                                     Mira sus votos
                                   </GhostButton>
                                 </div>
                                 <div className="text-right">
-                                  <div className="text-4xl md:text-6xl font-black leading-none">{p.toFixed(2)}%</div>
+                                  <div className="text-3xl md:text-6xl font-black leading-none">{p.toFixed(2)}%</div>
                                   <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
                                 </div>
                               </div>
@@ -544,14 +515,14 @@ export default function QuizPage() {
                         const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
                           const img = mepImage(id);
                           return (
-                            <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-white/5 p-4 md:p-5 flex items-center gap-4 mx-auto">
-                              <div className="w-7 h-7 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
+                            <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-white/5 p-3 md:p-5 flex items-center gap-3 md:gap-4 mx-auto">
+                              <div className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-[11px] md:text-xs">
                                 {place}
                               </div>
                               {img ? (
-                                <img src={img} alt={mepName(id)} className="w-12 h-12 rounded-full object-cover" loading="lazy" />
+                                <img src={img} alt={mepName(id)} className="w-10 h-10 md:w-12 md:h-12 rounded-full object-cover" loading="lazy" />
                               ) : (
-                                <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center">👤</div>
+                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 grid place-items-center">👤</div>
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold truncate">{mepName(id)}</div>
@@ -560,14 +531,14 @@ export default function QuizPage() {
                                 <span className="mt-2 block">
                                   <span
                                     onClick={() => setDetailFor(id)}
-                                    className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
+                                    className="inline-flex items-center px-2 py-1 md:px-2.5 md:py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
                                   >
                                     Mira sus votos
                                   </span>
                                 </span>
                               </div>
                               <div className="text-right">
-                                <div className="text-2xl font-extrabold leading-none">{p.toFixed(2)}%</div>
+                                <div className="text-lg md:text-2xl font-extrabold leading-none">{p.toFixed(2)}%</div>
                                 <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
                               </div>
                             </div>
@@ -587,7 +558,7 @@ export default function QuizPage() {
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* CTA ESTÁTICO */}
+                  {/* CTA */}
                   <div className="text-center mt-10">
                     <span
                       onClick={smoothScrollToRanking}
@@ -598,7 +569,7 @@ export default function QuizPage() {
                     </span>
                   </div>
 
-                  {/* Ranking de coincidencia (segunda sección) */}
+                  {/* Ranking (segunda sección) */}
                   <div ref={rankingRef} className="mt-24 px-2 scroll-mt-24">
                     <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
@@ -621,12 +592,12 @@ export default function QuizPage() {
                             className="flex items-center gap-3 px-2 sm:px-3 py-2 border-b border-white/10"
                           >
                             {/* Posiciones: global siempre; país solo si hay búsqueda */}
-                            <div className="w-24 flex items-center justify-start gap-2">
+                            <div className="w-20 sm:w-24 flex items-center justify-start gap-2 shrink-0">
                               <div className="w-8 text-center font-semibold">
                                 {r.showPos ? r.globalPos : ""}
                               </div>
                               {Boolean(search.trim()) && r.countryPos ? (
-                                <span className="text-xs opacity-70">#{r.countryPos} país</span>
+                                <span className="text-[11px] sm:text-xs opacity-70">#{r.countryPos} país</span>
                               ) : null}
                             </div>
 
@@ -635,26 +606,33 @@ export default function QuizPage() {
                               <img
                                 src={r.image}
                                 alt={r.name}
-                                className="w-9 h-9 rounded-full object-cover"
+                                className="w-10 h-10 sm:w-9 sm:h-9 rounded-full object-cover shrink-0"
                                 loading="lazy"
                               />
                             ) : (
-                              <div className="w-9 h-9 rounded-full bg-white/10 grid place-items-center">👤</div>
+                              <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
                             )}
 
+                            {/* Texto flexible y legible en móvil */}
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{r.name}</div>
-                              <div className="text-xs opacity-70 truncate">{r.group}</div>
-                              <div className="text-[11px] opacity-60 truncate">{r.country}</div>
+                              <div className="font-medium leading-tight truncate">{r.name}</div>
+                              <div className="text-xs opacity-80 leading-tight truncate">{r.group}</div>
+                              <div className="text-[11px] opacity-70 leading-tight truncate">{r.country}</div>
                             </div>
-                            <div className="w-24 text-right font-mono">{r.pct.toFixed(2)}%</div>
-                            <span
-                              onClick={() => setDetailFor(r.memberId)}
-                              className="ml-3 inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
-                              role="button"
-                            >
-                              Mira sus votos
-                            </span>
+
+                            {/* % y CTA a la derecha, con flex para no romper */}
+                            <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
+                              <div className="text-right font-mono text-sm sm:text-base w-auto sm:w-24">
+                                {r.pct.toFixed(2)}%
+                              </div>
+                              <span
+                                onClick={() => setDetailFor(r.memberId)}
+                                className="inline-flex items-center px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs sm:text-sm cursor-pointer"
+                                role="button"
+                              >
+                                Mira sus votos
+                              </span>
+                            </div>
                           </motion.div>
                         ))}
                       </AnimatePresence>
@@ -681,8 +659,8 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija – AHORA POR ENCIMA DEL DIÁLOGO */}
-      <div className="fixed left-0 right-0 bottom-0 z-[1000] pointer-events-auto bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
+      {/* Barra inferior fija – por encima de todo */}
+      <div className="fixed left-0 right-0 bottom-0 z-[70] bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
         <AnimatePresence initial={false} mode="wait">
           {!overlayOpen ? (
             !done ? (
@@ -794,30 +772,41 @@ function InfoDialog({
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
+        {/* Overlay por encima de todo, deja ver el botón Cerrar (z de la barra es 70) */}
         <Dialog.Overlay asChild>
           <motion.div
-            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm cursor-default"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           />
         </Dialog.Overlay>
 
+        {/* En móvil: fullscreen (inset-0, sin translate); en md+: centrado */}
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-[95] w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
-             rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-             shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
+            className="
+              fixed inset-0
+              md:left-1/2 md:top-1/2 md:inset-auto md:w-[min(92vw,820px)] md:-translate-x-1/2 md:-translate-y-1/2
+              rounded-none md:rounded-2xl
+              border border-white/20
+              bg-[#0b1d5f]/90 text-white
+              p-4 md:p-7
+              shadow-[0_10px_40px_rgba(0,0,0,0.35)]
+              h-dvh md:h-auto md:max-h-[80vh]
+              overflow-y-auto
+              z-[65]
+            "
           >
-            <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
+            <Dialog.Title className="text-base md:text-xl font-semibold mb-3 md:mb-4">Qué se vota</Dialog.Title>
 
             {/* Descripción */}
             {q.queSeVota ? (
-              <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
+              <p className="text-sm md:text-base opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
             ) : (
               <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
             )}
@@ -837,15 +826,15 @@ function InfoDialog({
             )}
 
             {(q.aFavor?.length || q.enContra?.length) ? (
-              <div className="mt-5 grid md:grid-cols-2 gap-6">
+              <div className="mt-4 md:mt-5 grid md:grid-cols-2 gap-4 md:gap-6">
                 {q.aFavor?.length ? (
                   <div>
-                    <div className="w-full flex justify-center mb-3">
+                    <div className="w-full flex justify-center mb-2 md:mb-3">
                       <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-700 text-white">
                         Argumentos a favor
                       </span>
                     </div>
-                    <div className="space-y-2 text-sm opacity-90 text-justify">
+                    <div className="space-y-2 text-sm md:text-base opacity-90 text-justify">
                       {q.aFavor.map((t, i) => (
                         <p key={i}>{t}</p>
                       ))}
@@ -855,12 +844,12 @@ function InfoDialog({
 
                 {q.enContra?.length ? (
                   <div>
-                    <div className="w-full flex justify-center mb-3">
+                    <div className="w-full flex justify-center mb-2 md:mb-3">
                       <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-700 text-white">
                         Argumentos en contra
                       </span>
                     </div>
-                    <div className="space-y-2 text-sm opacity-90 text-justify">
+                    <div className="space-y-2 text-sm md:text-base opacity-90 text-justify">
                       {q.enContra.map((t, i) => (
                         <p key={i}>{t}</p>
                       ))}
@@ -869,8 +858,6 @@ function InfoDialog({
                 ) : null}
               </div>
             ) : null}
-
-            {/* SIN botón de cerrar interno; se usa la barra inferior */}
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -914,7 +901,7 @@ function DetailDialog({
       <Dialog.Portal>
         <Dialog.Overlay asChild>
           <motion.div
-            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm cursor-default"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -926,38 +913,45 @@ function DetailDialog({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-[95] w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
-                       rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-                       shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
+            className="
+              fixed inset-0
+              md:left-1/2 md:top-1/2 md:inset-auto md:w-[min(92vw,980px)] md:-translate-x-1/2 md:-translate-y-1/2
+              rounded-none md:rounded-2xl
+              border border-white/20
+              bg-[#0b1d5f]/90 text-white
+              p-4 md:p-7
+              shadow-[0_10px_40px_rgba(0,0,0,0.35)]
+              h-dvh md:h-auto md:max-h-[85vh]
+              overflow-y-auto
+              z-[65]
+            "
           >
-            <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
+            <Dialog.Title className="text-base md:text-xl font-semibold mb-2 md:mb-3">
               Comparativa de votos — {mepName(memberId)}{" "}
               <span className="opacity-70">({mepGroup(memberId)})</span>
-              <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
+              <div className="text-[11px] md:text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
             </Dialog.Title>
 
             <div className="rounded-xl border border-white/15 overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
+              <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] sm:grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
                 <div className="px-3 py-2 font-semibold">Pregunta</div>
                 <div className="px-3 py-2 font-semibold text-center">Tú</div>
                 <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
               </div>
               <div className="divide-y divide-white/10">
                 {rows.map((r) => (
-                  <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
+                  <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_88px_88px] sm:grid-cols-[minmax(0,1fr)_110px_110px] items-center">
                     <div className="px-3 py-2 text-sm">{r.q}</div>
                     <div className="px-3 py-2 flex items-center justify-center">
-                      <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+                      <span className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
                     </div>
                     <div className="px-3 py-2 flex items-center justify-center">
-                      <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
+                      <span className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* SIN botón de cerrar interno; se usa la barra inferior */}
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
