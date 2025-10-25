@@ -58,11 +58,13 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<Mode>("coverage");
 
-  // Embla
+  // Embla + refs para medir viewport/track
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
-    align: "center",          // centrado real para TODAS las slides
+    align: "center",
     containScroll: "trimSnaps",
     inViewThreshold: 0.6,
     skipSnaps: false,
@@ -80,6 +82,29 @@ export default function QuizPage() {
 
   const [index, setIndex] = useState(0);
   const total = questions.length;
+
+  // ======= Cálculo del padding lateral (spacers) =======
+  // slide = w-[86vw] con max-w-3xl (48rem = 768px)
+  const SLIDE_VW = 0.86;
+  const SLIDE_MAX_PX = 768;
+
+  const [sidePad, setSidePad] = useState(0);
+
+  const recalcSidePad = useCallback(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const vpW = vp.clientWidth || window.innerWidth;
+    const slideW = Math.min(vpW * SLIDE_VW, SLIDE_MAX_PX);
+    const pad = Math.max((vpW - slideW) / 2, 0);
+    setSidePad(pad);
+  }, []);
+
+  useEffect(() => {
+    recalcSidePad();
+    const onResize = () => recalcSidePad();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [recalcSidePad]);
 
   // UI / resultados
   const [entered, setEntered] = useState(false);
@@ -149,10 +174,21 @@ export default function QuizPage() {
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", () => onSelect(emblaApi));
-    emblaApi.on("reInit", () => onSelect(emblaApi));
+    emblaApi.on("reInit", () => {
+      recalcSidePad();
+      onSelect(emblaApi);
+    });
     emblaApi.scrollTo(0, true);
     setTimeout(() => emblaApi.scrollTo(0, true), 0);
-  }, [emblaApi, onSelect]);
+  }, [emblaApi, onSelect, recalcSidePad]);
+
+  // Recalcular cuando haya slides
+  useEffect(() => {
+    if (!emblaApi || total === 0) return;
+    recalcSidePad();
+    emblaApi.reInit();
+    requestAnimationFrame(() => emblaApi.scrollTo(0, true));
+  }, [emblaApi, total, recalcSidePad]);
 
   // Navegación determinista
   const goTo = useCallback(
@@ -292,9 +328,10 @@ export default function QuizPage() {
               }}
               ref={setViewport}
             >
-              {/* Track SIN gap. Usamos padding en cada slide y un -mx equivalente aquí. */}
-              {/* gap deseado: 2.5rem (40px) en móvil y 4rem (64px) en md+ */}
-              <div className="-mx-10 md:-mx-16 flex items-stretch py-4">
+              {/* Track con gap + spacers laterales dinámicos */}
+              <div ref={trackRef} className="flex items-stretch gap-10 md:gap-16 py-4">
+                {/* Spacer izquierdo */}
+                <div aria-hidden style={{ flex: `0 0 ${sidePad}px` }} />
                 {questions.map((q, idx) => {
                   const active = idx === index;
                   const answered = choices[q.id] !== undefined;
@@ -302,7 +339,7 @@ export default function QuizPage() {
                   return (
                     <div
                       key={q.id}
-                      className={`flex-none px-10 md:px-16 w-[86vw] max-w-3xl select-none transition-all duration-300 ${
+                      className={`flex-none w-[86vw] max-w-3xl select-none transition-all duration-300 ${
                         active ? "opacity-100 scale-100" : "opacity-35 scale-[0.97]"
                       }`}
                       aria-hidden={!active}
@@ -348,6 +385,8 @@ export default function QuizPage() {
                     </div>
                   );
                 })}
+                {/* Spacer derecho */}
+                <div aria-hidden style={{ flex: `0 0 ${sidePad}px` }} />
               </div>
             </div>
 
