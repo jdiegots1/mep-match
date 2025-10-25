@@ -75,15 +75,13 @@ export default function QuizPage() {
   // hover para atenuar otras opciones
   const [hoverVal, setHoverVal] = useState<number | null>(null);
 
-  // ranking state
+  // ranking
   const [search, setSearch] = useState("");
   const [detailFor, setDetailFor] = useState<string | null>(null);
-  const [showCount, setShowCount] = useState(10); // filas visibles en ranking
+  const [showCount, setShowCount] = useState(10);
   const rankingRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    setShowCount(10); // reset al cambiar búsqueda
-  }, [search]);
+  useEffect(() => setShowCount(10), [search]);
 
   const total = questions.length;
   const current = questions[index];
@@ -138,12 +136,10 @@ export default function QuizPage() {
       requestAnimationFrame(() => setEntered(true));
     })();
 
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
-  // progreso por posición (no por respuestas)
+  // progreso por posición
   const progressPct = useMemo(() => {
     if (!total) return 0;
     const pos = Math.min(index + 1, total);
@@ -153,12 +149,8 @@ export default function QuizPage() {
   const vote = (qId: string, val: number) => {
     setChoices((prev) => ({ ...prev, [qId]: val }));
     setHoverVal(null);
-    if (index < total - 1) {
-      setIndex((i) => i + 1);
-    } else {
-      // última ⇒ ir a resultados
-      setDone(true);
-    }
+    if (index < total - 1) setIndex((i) => i + 1);
+    else setDone(true);
   };
 
   const filteredChoices = useMemo(() => {
@@ -174,20 +166,16 @@ export default function QuizPage() {
     return scoreMembers(filteredChoices, matrix, {
       coveragePenalty: mode === "coverage",
       minOverlap: 5,
-    }); // ya viene ordenado desc
+    }); // desc
   }, [filteredChoices, matrix, mode]);
 
-  const top = useMemo(() => {
-    if (!done) return [];
-    return computeScores.slice(0, 10);
-  }, [done, computeScores]);
+  const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
-  // Ranking con filtro + posiciones con empate
+  // Ranking con filtro + empates comprimidos (1º, … siguientes grupo 2º, etc.)
   const rankedAll = useMemo(() => {
     if (!done) return [];
     const q = search.trim().toLowerCase();
 
-    // filtrar por búsqueda
     let arr = computeScores.filter((s) => {
       if (!q) return true;
       const m = members.find((mm) => mm.id === s.memberId);
@@ -197,21 +185,23 @@ export default function QuizPage() {
       return name.includes(q) || group.includes(q) || country.includes(q);
     });
 
-    // calcular % redondeado y posiciones con empates (por % mostrado)
     let lastPct: number | null = null;
-    let currentPos = 0;
+    let rankNumber = 0; // 1, 2, 3… por grupo de empate
     return arr.map((s, i) => {
       const pct = Number((s.affinity * 100).toFixed(2));
-      if (lastPct === null || pct !== lastPct) {
-        currentPos = i + 1;
+      const isNewGroup = lastPct === null || pct !== lastPct;
+      if (isNewGroup) {
+        rankNumber += 1;
         lastPct = pct;
       }
+      const prevPct = i > 0 ? Number((arr[i - 1].affinity * 100).toFixed(2)) : null;
+      const showPos = i === 0 || pct !== prevPct;
       const m = members.find((mm) => mm.id === s.memberId);
       return {
         memberId: s.memberId,
         pct,
-        pos: currentPos,
-        showPos: i === 0 || pct !== Number((arr[i - 1].affinity * 100).toFixed(2)),
+        pos: rankNumber,   // <— 1, 2, 3… por grupo
+        showPos,           // solo el primero del grupo muestra número
         name: m?.name ?? s.memberId,
         group: m?.group ?? "—",
         country: m?.country ?? "—",
@@ -229,6 +219,8 @@ export default function QuizPage() {
   const smoothScrollToRanking = () => {
     rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  const overlayOpen = infoOpen || !!detailFor;
 
   if (!total) {
     return (
@@ -252,7 +244,7 @@ export default function QuizPage() {
         </div>
       </header>
 
-      {/* Progreso (por índice actual) */}
+      {/* Progreso */}
       <div className="max-w-5xl w-full mx-auto mb-4">
         <div className="h-2 rounded-full bg-white/20 overflow-hidden">
           <div
@@ -273,16 +265,9 @@ export default function QuizPage() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            {/* GRID con altura EXACTA para el bloque de título (no varía) */}
-            <div
-              className="
-                max-w-5xl mx-auto 
-                grid 
-                grid-rows-[200px_auto] md:grid-rows-[240px_auto] lg:grid-rows-[280px_auto]
-              "
-            >
-              {/* Fila 1: encabezado y título — fijo */}
-              <div className="row-start-1 row-end-2 col-span-1">
+            <div className="max-w-5xl mx-auto grid grid-rows-[200px_auto] md:grid-rows-[240px_auto] lg:grid-rows-[280px_auto]">
+              {/* Título */}
+              <div className="row-start-1 row-end-2">
                 <div className="text-center">
                   <div className="text-sm opacity-80 mb-2">
                     Pregunta {index + 1} de {total}
@@ -295,8 +280,8 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Fila 2: RESPUESTAS — siempre a la misma altura */}
-              <div className="row-start-2 row-end-3 col-span-1">
+              {/* Respuestas */}
+              <div className="row-start-2 row-end-3">
                 <div className="max-w-3xl mx-auto mt-14 md:mt-16">
                   <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
                     <div
@@ -313,15 +298,9 @@ export default function QuizPage() {
                       ).map(([label, val, color]) => {
                         const selectedVal = choices[current.id];
                         const isPressed = selectedVal === val;
-
-                        // Atenuar otras opciones si hay selección o hover
-                        const dimBecauseSelected =
-                          selectedVal !== undefined && !isPressed;
-                        const dimBecauseHover =
-                          selectedVal === undefined &&
-                          hoverVal !== null &&
-                          hoverVal !== val;
-                        const dim = dimBecauseSelected || dimBecauseHover;
+                        const dim =
+                          (selectedVal !== undefined && !isPressed) ||
+                          (selectedVal === undefined && hoverVal !== null && hoverVal !== val);
 
                         const baseDefault =
                           color === "green"
@@ -368,11 +347,10 @@ export default function QuizPage() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="w-full max-w-5xl mx-auto">
+            <div className="w-full max-w-6xl mx-auto">
+              {/* Encabezado y tabs */}
               <div className="mb-4 flex items-center justify-between gap-3 px-2">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
-
-                {/* Tabs con transición suave del contenido */}
                 <div
                   role="tablist"
                   aria-label="Modo de cálculo de afinidad"
@@ -394,7 +372,7 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Top 3 */}
+              {/* Top-3 centrado vertical y horizontalmente (ocupa ~80vh) */}
               {computeScores.length < 5 ? (
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
@@ -406,15 +384,22 @@ export default function QuizPage() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -16 }}
                       transition={{ duration: 0.22 }}
-                      className="px-2"
+                      className="min-h-[80vh] flex flex-col items-center justify-center px-2"
                     >
                       {(() => {
                         const top3 = top.slice(0, 3);
 
+                        const GhostButton = (props: React.HTMLAttributes<HTMLSpanElement>) => (
+                          <span
+                            {...props}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer ${props.className ?? ""}`}
+                          />
+                        );
+
                         const WinnerCard = ({ id, p }: { id: string; p: number }) => {
                           const img = mepImage(id);
                           return (
-                            <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-6 md:p-8 mb-5">
+                            <div className="w-full max-w-3xl relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-6 md:p-8 mb-6">
                               <span className="absolute top-4 left-4 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2.5 py-1 rounded-md font-semibold">
                                 Tu mejor coincidencia
                               </span>
@@ -427,21 +412,16 @@ export default function QuizPage() {
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-4xl">
-                                    👤
-                                  </div>
+                                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-4xl">👤</div>
                                 )}
-                                <div className="flex-1">
-                                  <div className="text-2xl md:text-3xl font-bold leading-tight">{mepName(id)}</div>
-                                  <div className="text-sm md:text-base opacity-80">
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-2xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
+                                  <div className="text-sm md:text-base opacity-80 truncate">
                                     {mepGroup(id)} • {mepCountry(id)}
                                   </div>
-                                  <span
-                                    onClick={() => setDetailFor(id)}
-                                    className="mt-2 inline-block underline underline-offset-2 opacity-90 hover:opacity-100 cursor-pointer text-sm md:text-base"
-                                  >
+                                  <GhostButton onClick={() => setDetailFor(id)} className="mt-3">
                                     Mira sus votos
-                                  </span>
+                                  </GhostButton>
                                 </div>
                                 <div className="text-right">
                                   <div className="text-4xl md:text-6xl font-black leading-none">{p.toFixed(2)}%</div>
@@ -455,7 +435,7 @@ export default function QuizPage() {
                         const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
                           const img = mepImage(id);
                           return (
-                            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 md:p-5 flex items-center gap-4">
+                            <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-white/5 p-4 md:p-5 flex items-center gap-4 mx-auto">
                               <div className="w-7 h-7 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
                                 {place}
                               </div>
@@ -467,11 +447,13 @@ export default function QuizPage() {
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold truncate">{mepName(id)}</div>
                                 <div className="text-xs opacity-70 truncate">{mepGroup(id)} • {mepCountry(id)}</div>
-                                <span
-                                  onClick={() => setDetailFor(id)}
-                                  className="mt-1 inline-block underline underline-offset-2 opacity-90 hover:opacity-100 cursor-pointer text-xs"
-                                >
-                                  Mira sus votos
+                                <span className="mt-2 block">
+                                  <span
+                                    onClick={() => setDetailFor(id)}
+                                    className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
+                                  >
+                                    Mira sus votos
+                                  </span>
                                 </span>
                               </div>
                               <div className="text-right">
@@ -485,16 +467,16 @@ export default function QuizPage() {
                         return (
                           <>
                             {top3[0] && <WinnerCard id={top3[0].memberId} p={top3[0].affinity * 100} />}
-                            <div className="grid md:grid-cols-2 gap-4">
+                            <div className="grid md:grid-cols-2 gap-4 w-full place-items-center">
                               {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
                               {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
                             </div>
 
                             {/* CTA para ir al ranking */}
-                            <div className="text-center mt-6">
+                            <div className="text-center mt-8">
                               <span
                                 onClick={smoothScrollToRanking}
-                                className="cursor-pointer underline underline-offset-2 opacity-90 hover:opacity-100"
+                                className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
                                 role="button"
                               >
                                 Mira tus coincidencias con todos los eurodiputados
@@ -506,17 +488,18 @@ export default function QuizPage() {
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* Ranking de coincidencia */}
-                  <div ref={rankingRef} className="mt-12 px-2">
+                  {/* Ranking de coincidencia (debajo del pliegue) */}
+                  <div ref={rankingRef} className="mt-24 px-2">
                     <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Buscar por nombre, grupo o país…"
-                      className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-3"
+                      className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
                     />
 
-                    <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                    {/* Lista integrada con el fondo: sin recuadro contenedor */}
+                    <div>
                       <AnimatePresence initial={false}>
                         {rankedAll.slice(0, showCount).map((r) => (
                           <motion.div
@@ -525,7 +508,7 @@ export default function QuizPage() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -8 }}
                             transition={{ duration: 0.18 }}
-                            className="flex items-center gap-3 px-4 py-2"
+                            className="flex items-center gap-3 px-2 sm:px-3 py-2 border-b border-white/10"
                           >
                             <div className="w-8 text-center font-semibold">
                               {r.showPos ? r.pos : ""}
@@ -550,7 +533,7 @@ export default function QuizPage() {
                             <div className="w-24 text-right font-mono">{r.pct.toFixed(2)}%</div>
                             <span
                               onClick={() => setDetailFor(r.memberId)}
-                              className="ml-3 px-2 py-1 rounded-lg hover:bg-white/10 transition text-sm underline underline-offset-2 cursor-pointer"
+                              className="ml-3 inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
                               role="button"
                             >
                               Mira sus votos
@@ -560,12 +543,12 @@ export default function QuizPage() {
                       </AnimatePresence>
                     </div>
 
-                    {/* Mostrar más (texto clicable) */}
+                    {/* Mostrar más */}
                     {rankedAll.length > showCount && (
-                      <div className="text-center mt-3">
+                      <div className="text-center mt-4">
                         <span
                           onClick={() => setShowCount((c) => c + 10)}
-                          className="cursor-pointer underline underline-offset-2 opacity-80 hover:opacity-100"
+                          className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
                           role="button"
                           aria-label="Mostrar más resultados"
                         >
@@ -581,41 +564,51 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija (siempre visible y sin solapar) */}
-      <div
-        className={`fixed left-0 right-0 bottom-0 z-30 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10`}
-      >
-        <div
-          className={`mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-between transition-opacity ${
-            infoOpen ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
-        >
-          <button
-            onClick={() => {
-              if (done) {
-                setDone(false);
-                return;
-              }
-              setIndex((i) => Math.max(0, i - 1));
-            }}
-            disabled={!questions.length || (index === 0 && !done)}
-            className={`px-4 py-2 rounded-lg ${
-              !questions.length || (index === 0 && !done)
-                ? "bg-white/10 opacity-50 cursor-not-allowed"
-                : "bg-white/10 hover:bg-white/15 cursor-pointer"
-            }`}
-          >
-            Volver atrás
-          </button>
-          <button
-            onClick={() => setDone(true)}
-            className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
-              done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
-            }`}
-            disabled={done}
-          >
-            Ver resultados
-          </button>
+      {/* Barra inferior fija */}
+      <div className="fixed left-0 right-0 bottom-0 z-30 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
+        <div className="mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-between">
+          {!overlayOpen ? (
+            <>
+              <button
+                onClick={() => {
+                  if (done) {
+                    setDone(false);
+                    return;
+                  }
+                  setIndex((i) => Math.max(0, i - 1));
+                }}
+                disabled={!questions.length || (index === 0 && !done)}
+                className={`px-4 py-2 rounded-lg ${
+                  !questions.length || (index === 0 && !done)
+                    ? "bg-white/10 opacity-50 cursor-not-allowed"
+                    : "bg-white/10 hover:bg-white/15 cursor-pointer"
+                }`}
+              >
+                Volver atrás
+              </button>
+              <button
+                onClick={() => setDone(true)}
+                className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
+                  done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+                }`}
+                disabled={done}
+              >
+                Ver resultados
+              </button>
+            </>
+          ) : (
+            <div className="w-full flex items-center justify-center">
+              <button
+                onClick={() => {
+                  if (detailFor) setDetailFor(null);
+                  else if (infoOpen) setInfoOpen(false);
+                }}
+                className="px-5 py-2 rounded-lg bg-white/90 text-black font-semibold hover:bg-white"
+              >
+                Cerrar
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
