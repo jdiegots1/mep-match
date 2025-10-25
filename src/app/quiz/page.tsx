@@ -5,6 +5,7 @@ import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 /* ====================== Tipos ====================== */
 type Member = {
@@ -61,6 +62,8 @@ const colorFromVal = (v: number | undefined) =>
 
 /* ====================== Página ====================== */
 export default function QuizPage() {
+  const router = useRouter();
+
   const [questions, setQuestions] = useState<Question[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [matrix, setMatrix] = useState<Matrix>({});
@@ -309,6 +312,14 @@ export default function QuizPage() {
     });
   }, [questions, choices]);
 
+  // helpers barra inferior (resultados)
+  const resetTest = () => {
+    setChoices({});
+    setIndex(0);
+    setDone(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (!total) {
     return (
       <main className="min-h-dvh grid place-items-center p-6">
@@ -469,7 +480,6 @@ export default function QuizPage() {
                       role="tab"
                       aria-selected={mode === m}
                       onClick={() => setMode(m)}
-                      // ↓↓↓ MÁS PEQUEÑO EN MÓVIL; igual que estaba en desktop
                       className={`px-3 py-1.5 text-xs md:text-sm cursor-pointer transition ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
                       }`}
@@ -714,7 +724,7 @@ export default function QuizPage() {
                               flex flex-col sm:flex-row sm:items-center sm:gap-3
                             "
                           >
-                            {/* Cabecera del ítem en móvil: posición + porcentaje a la derecha */}
+                            {/* Cabecera del ítem en móvil */}
                             <div className="flex items-center justify-between sm:hidden mb-1">
                               <div className="inline-flex items-center gap-2">
                                 <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-md bg-white/10 text-xs font-semibold">
@@ -727,8 +737,8 @@ export default function QuizPage() {
                               <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
                             </div>
 
-                            {/* Foto + texto (móvil apilado) */}
-                            <div className="flex items-start gap-3">
+                            {/* Foto + texto */}
+                            <div className="flex items-start gap-3 w-full">
                               {r.image ? (
                                 <img
                                   src={r.image}
@@ -741,15 +751,14 @@ export default function QuizPage() {
                               )}
 
                               <div className="min-w-0 flex-1">
-                                {/* En móvil: NO truncamos; en sm+ sí */}
                                 <div className="font-medium leading-tight break-words sm:truncate">{r.name}</div>
                                 <div className="text-xs opacity-80 leading-tight break-words sm:truncate">{r.group}</div>
                                 <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
                               </div>
 
-                              {/* DERECHA (solo escritorio): más aire y pegado al borde derecho */}
-                              <div className="hidden sm:flex items-center md:gap-6 lg:gap-10 shrink-0 ml-auto pr-2 md:pr-4">
-                                <div className="text-right font-mono w-28 md:w-32 lg:w-40">{r.pct.toFixed(2)}%</div>
+                              {/* DERECHA (solo escritorio): pegado al borde derecho */}
+                              <div className="hidden md:flex items-center gap-8 shrink-0 ml-auto sm:-mr-3 md:-mr-6 lg:-mr-10 xl:-mr-14">
+                                <div className="text-right font-mono w-36 lg:w-48 xl:w-56">{r.pct.toFixed(2)}%</div>
                                 <span
                                   onClick={() => setDetailFor(r.memberId)}
                                   className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
@@ -796,7 +805,7 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija – por encima del overlay (botón Cerrar clickeable) */}
+      {/* Barra inferior fija – por encima del overlay */}
       <div className="fixed left-0 right-0 bottom-0 z-[1000] pointer-events-auto bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
         <AnimatePresence initial={false} mode="wait">
           {!overlayOpen ? (
@@ -838,19 +847,44 @@ export default function QuizPage() {
               </motion.div>
             ) : (
               <motion.div
-                key="results-back-only"
+                key="results-actions"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
                 transition={{ duration: 0.18 }}
-                className="mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-center"
+                className="mx-auto w-full max-w-5xl px-4 py-3"
               >
-                <button
-                  onClick={() => setDone(false)}
-                  className="px-5 py-2 rounded-lg bg-white/10 hover:bg-white/15 cursor-pointer"
-                >
-                  Volver atrás
-                </button>
+                {/* Mobile: un solo botón simple */}
+                <div className="flex md:hidden items-center justify-center gap-3">
+                  <button
+                    onClick={() => setDone(false)}
+                    className="px-5 py-2 rounded-lg bg-white/10 hover:bg-white/15 cursor-pointer"
+                  >
+                    Volver atrás
+                  </button>
+                </div>
+
+                {/* Desktop: los tres botones pedidos */}
+                <div className="hidden md:flex items-center justify-center gap-3">
+                  <button
+                    onClick={() => setDone(false)}
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 cursor-pointer"
+                  >
+                    Continuar con el test
+                  </button>
+                  <button
+                    onClick={resetTest}
+                    className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 cursor-pointer"
+                  >
+                    Reiniciar el test
+                  </button>
+                  <button
+                    onClick={() => router.push("/")}
+                    className="px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold hover:brightness-95 cursor-pointer"
+                  >
+                    Ir a inicio
+                  </button>
+                </div>
               </motion.div>
             )
           ) : (
@@ -918,7 +952,7 @@ function InfoDialog({
           />
         </Dialog.Overlay>
 
-        {/* ===== Centro real en móvil: el Content actúa como CONTENEDOR flex ===== */}
+        {/* Contenedor centrado (móvil y desktop) */}
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -1035,7 +1069,7 @@ function DetailDialog({
             exit={{ opacity: 0 }}
           />
         </Dialog.Overlay>
-        {/* ===== Centro real en móvil ===== */}
+        {/* Centro real en móvil y desktop */}
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
