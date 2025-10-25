@@ -256,13 +256,13 @@ export default function QuizPage() {
       base = base.filter(({ memberId }) => {
         const m = members.find((mm) => mm.id === memberId);
         const name = m?.name?.toLowerCase() ?? "";
-        const group = m?.group?.toLowerCase() ?? "";
+               const group = m?.group?.toLowerCase() ?? "";
         const country = m?.country?.toLowerCase() ?? "";
         return name.includes(q) || group.includes(q) || country.includes(q);
       });
     }
 
-    // en la lista filtrada seguimos agrupando por % para mostrar el número solo al primero del grupo,
+    // seguimos agrupando por % para mostrar el número solo al primero del grupo (en la lista filtrada),
     // pero el número mostrado es SIEMPRE la posición global real
     let lastPctInFiltered: number | null = null;
 
@@ -301,6 +301,18 @@ export default function QuizPage() {
 
   const overlayOpen = infoOpen || !!detailFor;
 
+  // ===== PROGRESO VERTICAL (estado por pregunta) =====
+  const progressList = useMemo(() => {
+    return questions.map((q, i) => {
+      const v = choices[q.id];
+      const color =
+        v === 1 ? "bg-green-600" : v === -1 ? "bg-red-600" : v === 0 ? "bg-amber-500" : "bg-gray-500";
+      const label =
+        v === 1 ? "A favor" : v === -1 ? "En contra" : v === 0 ? "Abstención" : "Sin responder";
+      return { index: i + 1, color, label };
+    });
+  }, [questions, choices]);
+
   if (!total) {
     return (
       <main className="min-h-dvh grid place-items-center p-6">
@@ -315,6 +327,25 @@ export default function QuizPage() {
         entered ? "opacity-100" : "opacity-0"
       }`}
     >
+      {/* Panel de progreso vertical (solo durante el quiz, en pantallas md+) */}
+      {!done && (
+        <div
+          aria-label="Progreso del cuestionario"
+          className="hidden md:flex fixed left-3 top-1/2 -translate-y-1/2 flex-col gap-2 z-[80]"
+        >
+          {progressList.map((p, idx) => (
+            <div
+              key={idx}
+              className={`flex items-center gap-2 px-2 py-1 rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm`}
+              title={`${p.label} — Pregunta ${p.index}`}
+            >
+              <span className="text-xs tabular-nums w-6 text-center opacity-80">{p.index}</span>
+              <span className={`h-3 w-5 rounded-full ${p.color}`} aria-hidden />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Cabecera */}
       <header className="max-w-5xl w-full mx-auto mb-2 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
@@ -372,7 +403,7 @@ export default function QuizPage() {
                         [
                           ["A favor", 1, "green"],
                           ["En contra", -1, "red"],
-                          ["Abstención", 0, "amber"], // naranja/amarillo
+                          ["Abstención", 0, "amber"],
                         ] as const
                       ).map(([label, val, color]) => {
                         const selectedVal = choices[current.id];
@@ -451,7 +482,7 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Top-3 con transición (solo tarjetas) */}
+              {/* Top-3 con transición */}
               {computeScores.length < 5 ? (
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
@@ -577,7 +608,7 @@ export default function QuizPage() {
                       className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
                     />
 
-                    {/* Lista integrada con el fondo */}
+                    {/* Lista */}
                     <div>
                       <AnimatePresence initial={false}>
                         {rankedAll.slice(0, showCount).map((r) => (
@@ -650,9 +681,8 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija – por encima de todo (cursor de Cerrar ok) */}
-      <div className="fixed left-0 right-0 bottom-0 z-60 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
-        {/* Transición suave entre estados de botones */}
+      {/* Barra inferior fija – AHORA POR ENCIMA DEL DIÁLOGO */}
+      <div className="fixed left-0 right-0 bottom-0 z-[1000] pointer-events-auto bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
         <AnimatePresence initial={false} mode="wait">
           {!overlayOpen ? (
             !done ? (
@@ -766,7 +796,7 @@ function InfoDialog({
       <Dialog.Portal>
         <Dialog.Overlay asChild>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -779,7 +809,7 @@ function InfoDialog({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
+            className="fixed left-1/2 top-1/2 z-[95] w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
              rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
              shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
           >
@@ -884,7 +914,7 @@ function DetailDialog({
       <Dialog.Portal>
         <Dialog.Overlay asChild>
           <motion.div
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -896,7 +926,7 @@ function DetailDialog({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
+            className="fixed left-1/2 top-1/2 z-[95] w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
                        rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
                        shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
           >
