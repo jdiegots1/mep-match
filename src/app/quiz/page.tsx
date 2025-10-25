@@ -136,7 +136,9 @@ export default function QuizPage() {
       requestAnimationFrame(() => setEntered(true));
     })();
 
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // progreso por posición
@@ -171,75 +173,121 @@ export default function QuizPage() {
 
   const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
+  // IDs presentes en la matriz
   const allMemberIds = useMemo(() => {
-  const set = new Set<string>();
-  Object.values(matrix).forEach((row) => {
-    if (row && typeof row === "object") {
-      Object.keys(row as Record<string, number | undefined>).forEach((mid) => set.add(mid));
+    const set = new Set<string>();
+    Object.values(matrix).forEach((row) => {
+      if (row && typeof row === "object") {
+        Object.keys(row as Record<string, number | undefined>).forEach((mid) => set.add(mid));
+      }
+    });
+    return Array.from(set).filter((id) => members.some((m) => m.id === id));
+  }, [matrix, members]);
+
+  // Mapa de afinidad por MEP
+  const scoreMap = useMemo(() => {
+    const map = new Map<string, number>();
+    computeScores.forEach((s) => map.set(s.memberId, s.affinity));
+    return map;
+  }, [computeScores]);
+
+  // Base global ordenada por afinidad (para posiciones reales)
+  const globalBase = useMemo(() => {
+    const list = allMemberIds.map((id) => ({
+      memberId: id,
+      affinity: scoreMap.get(id) ?? 0,
+      m: members.find((mm) => mm.id === id),
+    }));
+    list.sort((a, b) => b.affinity - a.affinity);
+    return list;
+  }, [allMemberIds, scoreMap, members]);
+
+  // Posición global comprimida (empates por % con 2 decimales)
+  const globalPosMap = useMemo(() => {
+    let lastPct: number | null = null;
+    let rank = 0;
+    const m = new Map<string, number>();
+    globalBase.forEach((s) => {
+      const pct = Number((s.affinity * 100).toFixed(2));
+      if (lastPct === null || pct !== lastPct) {
+        rank += 1;
+        lastPct = pct;
+      }
+      m.set(s.memberId, rank);
+    });
+    return m;
+  }, [globalBase]);
+
+  // Posición por país (también comprimida)
+  const countryPosMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const byCountry = new Map<string, typeof globalBase>();
+    globalBase.forEach((item) => {
+      const c = item.m?.country ?? "—";
+      if (!byCountry.has(c)) byCountry.set(c, []);
+      byCountry.get(c)!.push(item);
+    });
+    for (const [, arr] of byCountry) {
+      let lastPct: number | null = null;
+      let rank = 0;
+      arr.forEach((s) => {
+        const pct = Number((s.affinity * 100).toFixed(2));
+        if (lastPct === null || pct !== lastPct) {
+          rank += 1;
+          lastPct = pct;
+        }
+        map.set(s.memberId, rank);
+      });
     }
-  });
-  // opcional: cruza con la lista de members para quedarte con los que conoces
-  return Array.from(set).filter((id) => members.some((m) => m.id === id));
-}, [matrix, members]);
+    return map;
+  }, [globalBase]);
 
-const scoreMap = useMemo(() => {
-  const map = new Map<string, number>();
-  computeScores.forEach((s) => map.set(s.memberId, s.affinity));
-  return map;
-}, [computeScores]);
-
-  // Ranking con filtro + empates comprimidos (1º grupo=1, siguiente grupo=2, etc.)
+  // Ranking final: siempre muestra posición global real; si hay búsqueda, añade posición por país
   const rankedAll = useMemo(() => {
     if (!done) return [];
 
-    // base: todos con affinity (o 0)
-    let base = allMemberIds.map((id) => ({
-        memberId: id,
-        affinity: scoreMap.get(id) ?? 0,
-    }));
-
-    // filtro búsqueda
     const q = search.trim().toLowerCase();
+
+    // base: todos ordenados globalmente
+    let base = globalBase.map(({ memberId, affinity }) => ({ memberId, affinity }));
+
+    // filtro por búsqueda
     if (q) {
-        base = base.filter(({ memberId }) => {
+      base = base.filter(({ memberId }) => {
         const m = members.find((mm) => mm.id === memberId);
         const name = m?.name?.toLowerCase() ?? "";
         const group = m?.group?.toLowerCase() ?? "";
         const country = m?.country?.toLowerCase() ?? "";
         return name.includes(q) || group.includes(q) || country.includes(q);
-        });
+      });
     }
 
-    // orden por afinidad desc
-    base.sort((a, b) => b.affinity - a.affinity);
+    // en la lista filtrada seguimos agrupando por % para mostrar el número solo al primero del grupo,
+    // pero el número mostrado es SIEMPRE la posición global real
+    let lastPctInFiltered: number | null = null;
 
-    // agrupar empates por porcentaje mostrado (2 decimales) y rank comprimido 1,2,3...
-    let lastPct: number | null = null;
-    let rankNumber = 0;
+    return base.map((s) => {
+      const pct = Number((s.affinity * 100).toFixed(2));
+      const showPos = lastPctInFiltered === null || pct !== lastPctInFiltered;
+      lastPctInFiltered = pct;
 
-    return base.map((s, i) => {
-        const pct = Number((s.affinity * 100).toFixed(2));
-        const isNewGroup = lastPct === null || pct !== lastPct;
-        if (isNewGroup) {
-        rankNumber += 1;
-        lastPct = pct;
-        }
-        const prevPct = i > 0 ? Number((base[i - 1].affinity * 100).toFixed(2)) : null;
-        const showPos = i === 0 || pct !== prevPct;
+      const m = members.find((mm) => mm.id === s.memberId);
+      const globalPos = globalPosMap.get(s.memberId) ?? 0;
+      const countryPos = q ? countryPosMap.get(s.memberId) ?? null : null;
 
-        const m = members.find((mm) => mm.id === s.memberId);
-        return {
+      return {
         memberId: s.memberId,
         pct,
-        pos: rankNumber,
         showPos,
+        globalPos,
+        countryPos,
         name: m?.name ?? s.memberId,
         group: m?.group ?? "—",
         country: m?.country ?? "—",
         image: m?.image ?? m?.photo ?? null,
-        };
+      };
     });
-    }, [done, allMemberIds, scoreMap, members, search]);
+  }, [done, globalBase, globalPosMap, countryPosMap, members, search]);
 
   const mepById = (id: string) => members.find((m) => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
@@ -324,7 +372,7 @@ const scoreMap = useMemo(() => {
                         [
                           ["A favor", 1, "green"],
                           ["En contra", -1, "red"],
-                          ["Abstención", 0, "amber"], // ← cambiamos el color
+                          ["Abstención", 0, "amber"], // naranja/amarillo
                         ] as const
                       ).map(([label, val, color]) => {
                         const selectedVal = choices[current.id];
@@ -338,7 +386,7 @@ const scoreMap = useMemo(() => {
                             ? "bg-green-700 text-white"
                             : color === "red"
                             ? "bg-red-700 text-white"
-                            : "bg-amber-600 text-white"; // ← naranja/amarillo
+                            : "bg-amber-600 text-white";
 
                         return (
                           <button
@@ -377,9 +425,9 @@ const scoreMap = useMemo(() => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
-            >
+          >
             <div className="w-full max-w-6xl mx-auto">
-              {/* Encabezado estático (no cambia con la key del modo) */}
+              {/* Encabezado estático */}
               <div className="mb-4 flex items-center justify-between gap-3 px-2">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
                 <div
@@ -403,19 +451,19 @@ const scoreMap = useMemo(() => {
                 </div>
               </div>
 
-              {/* Top-3 con transición (solo cambia esta parte) */}
+              {/* Top-3 con transición (solo tarjetas) */}
               {computeScores.length < 5 ? (
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
                 <>
                   <AnimatePresence mode="wait">
                     <motion.div
-                        key={mode} // ← solo cambian las tarjetas
-                        initial={{ opacity: 0, x: 16 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -16 }}
-                        transition={{ duration: 0.22 }}
-                        className="flex flex-col items-center justify-center px-2"
+                      key={mode}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.22 }}
+                      className="min-h-[75vh] flex flex-col items-center justify-center px-2"
                     >
                       {(() => {
                         const top3 = top.slice(0, 3);
@@ -508,19 +556,19 @@ const scoreMap = useMemo(() => {
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* CTA ESTÁTICO (no entra en la transición por modo) */}
-                  <div className="text-center mt-6">
+                  {/* CTA ESTÁTICO */}
+                  <div className="text-center mt-10">
                     <span
-                        onClick={smoothScrollToRanking}
-                        className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
-                        role="button"
+                      onClick={smoothScrollToRanking}
+                      className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
+                      role="button"
                     >
-                        Mira tus coincidencias con todos los eurodiputados
+                      Mira tus coincidencias con todos los eurodiputados
                     </span>
-                    </div>
+                  </div>
 
-                  {/* Ranking de coincidencia */}
-                  <div ref={rankingRef} className="mt-24 px-2">
+                  {/* Ranking de coincidencia (segunda sección) */}
+                  <div ref={rankingRef} className="mt-24 px-2 scroll-mt-24">
                     <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
                       value={search}
@@ -541,8 +589,14 @@ const scoreMap = useMemo(() => {
                             transition={{ duration: 0.18 }}
                             className="flex items-center gap-3 px-2 sm:px-3 py-2 border-b border-white/10"
                           >
-                            <div className="w-8 text-center font-semibold">
-                              {r.showPos ? r.pos : ""}
+                            {/* Posiciones: global siempre; país solo si hay búsqueda */}
+                            <div className="w-24 flex items-center justify-start gap-2">
+                              <div className="w-8 text-center font-semibold">
+                                {r.showPos ? r.globalPos : ""}
+                              </div>
+                              {Boolean(search.trim()) && r.countryPos ? (
+                                <span className="text-xs opacity-70">#{r.countryPos} país</span>
+                              ) : null}
                             </div>
 
                             {/* foto */}
@@ -596,9 +650,8 @@ const scoreMap = useMemo(() => {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija */}
-      <div className="fixed left-0 right-0 bottom-0 z-50 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
-
+      {/* Barra inferior fija – por encima de todo (cursor de Cerrar ok) */}
+      <div className="fixed left-0 right-0 bottom-0 z-60 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
         {/* Transición suave entre estados de botones */}
         <AnimatePresence initial={false} mode="wait">
           {!overlayOpen ? (
@@ -712,13 +765,13 @@ function InfoDialog({
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay asChild>
-            <motion.div
-                className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-            />
-            </Dialog.Overlay>
+          <motion.div
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+        </Dialog.Overlay>
 
         <Dialog.Content asChild>
           <motion.div
@@ -739,19 +792,19 @@ function InfoDialog({
               <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
             )}
 
-            {/* Enlace centrado antes de argumentos */}
+            {/* Enlace centrado, estilo botón fantasma */}
             {q.url && (
-                <div className="mt-4 mb-2 text-sm text-center">
-                    <a
-                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition cursor-pointer"
-                    href={q.url!}
-                    target="_blank"
-                    rel="noreferrer"
-                    >
-                    Ampliar información
-                    </a>
-                </div>
-                )}
+              <div className="mt-4 mb-2 text-sm text-center">
+                <a
+                  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition cursor-pointer"
+                  href={q.url!}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ampliar información
+                </a>
+              </div>
+            )}
 
             {(q.aFavor?.length || q.enContra?.length) ? (
               <div className="mt-5 grid md:grid-cols-2 gap-6">
@@ -831,7 +884,7 @@ function DetailDialog({
       <Dialog.Portal>
         <Dialog.Overlay asChild>
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -843,7 +896,7 @@ function DetailDialog({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
+            className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
                        rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
                        shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
           >
