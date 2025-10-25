@@ -1,24 +1,33 @@
 @import "tailwindcss";
+@import "swiper/css";
+@import "swiper/css/navigation";
 
 /* Paleta UE */
-:root {
-  --eu-blue: #003399;
-  --eu-yellow: #ffcc00;
+:root{
+  --eu-blue:#003399;
+  --eu-yellow:#ffcc00;
 }
 
-html, body { height: 100%; }
+html, body{ height:100%; }
 
-/* Animación de aparición */
-@keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* ---------- Animaciones ---------- */
+@keyframes fade-in-up{
+  from{ opacity:0; transform:translateY(8px); }
+  to{   opacity:1; transform:translateY(0); }
 }
-.fade-in    { animation: fade-in-up .6s ease both; }
-.fade-in-1  { animation-delay: .10s; }
-.fade-in-2  { animation-delay: .20s; }
-.fade-in-3  { animation-delay: .30s; }
+.fade-in{ animation:fade-in-up .6s ease both; }
+.fade-in-1{ animation-delay:.10s; }
+.fade-in-2{ animation-delay:.20s; }
+.fade-in-3{ animation-delay:.30s; }
 
-/* Botón estilo UE — sin @apply para evitar errores */
+/* Suaves crossfades (útil para modo de resultados, etc.) */
+.x-fade{
+  transition: opacity .25s ease, transform .25s ease;
+}
+.x-fade-enter{ opacity:0; transform:translateY(4px); }
+.x-fade-ready{ opacity:1; transform:translateY(0); }
+
+/* ---------- Botón estilo UE ---------- */
 .btn-eu{
   display:inline-flex; align-items:center; justify-content:center;
   border-radius:1rem; /* ≈ rounded-2xl */
@@ -26,11 +35,64 @@ html, body { height: 100%; }
   font-weight:600;
   box-shadow:0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
   transition: transform .15s ease, filter .15s ease;
-  background: var(--eu-yellow);
+  background:var(--eu-yellow);
   color:#0b1d5f;
 }
-.btn-eu:hover { filter: brightness(0.95); transform: translateY(-1px); }
-.btn-eu:active{ transform: translateY(0); }
+.btn-eu:hover{ filter:brightness(.95); transform:translateY(-1px); }
+.btn-eu:active{ transform:translateY(0); }
 
 /* Contenedor centrado de la hero */
-.hero-wrap { min-height: calc(100dvh - 56px); }
+.hero-wrap{ min-height:calc(100dvh - 56px); }
+
+/* ---------- Utilidades ---------- */
+/* Ancho a pantalla completa desde contenedores centrados */
+.full-bleed{
+  width:100vw;
+  margin-left:calc(50% - 50vw);
+  margin-right:calc(50% - 50vw);
+}
+
+/* Ocultar barras de scroll (útil para contenedores horizontales) */
+.no-scrollbar{
+  -ms-overflow-style:none; /* IE/Edge */
+  scrollbar-width:none;    /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar{ display:none; }
+
+/* Elevación sutil para tarjetas (opcional) */
+.card-elevated{
+  box-shadow: 0 12px 30px rgba(0,0,0,.14), 0 6px 12px rgba(0,0,0,.10);
+}
+
+/* ---------- Swiper (carrusel) ---------- */
+.swiper{
+  overflow:visible; /* para que se vean las vecinas atenuadas */
+}
+
+/* Botones prev/next a los extremos, con glassmorphism */
+.swiper-button-prev,
+.swiper-button-next{
+  width:48px; height:48px; border-radius:9999px;
+  backdrop-filter: blur(6px);
+  background: rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.20);
+  color:#fff;
+  top:50% !important; transform:translateY(-50%);
+}
+.swiper-button-prev{ left:16px !important; }
+.swiper-button-next{ right:16px !important; }
+.swiper-button-disabled{ opacity:.35 !important; }
+
+/* Quitar pseudo flechas por defecto para poder usar solo el círculo si quieres */
+.swiper-button-prev::after,
+.swiper-button-next::after{
+  font-size:20px; /* mantén la flecha simple */
+}
+
+/* Suavizar la transición de slides */
+.swiper-wrapper{
+  transition-timing-function: ease !important;
+}
+
+/* Evitar scrollbar horizontal del body cuando el carrusel es full-bleed */
+body{ overflow-x:hidden; }
