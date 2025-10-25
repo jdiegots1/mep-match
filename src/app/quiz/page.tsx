@@ -101,7 +101,6 @@ export default function QuizPage() {
         .filter(Boolean) as Question[];
 
       // opcional: descarta preguntas cuyo id no exista en matrix (para asegurar resultados)
-      // Si prefieres mantener todas, comenta este filtro.
       const normalizedFiltered = normalized.filter(q => !!(mat as Matrix)[q.id]);
 
       const picked = shuffle(normalizedFiltered).slice(0, 10);
@@ -219,35 +218,93 @@ export default function QuizPage() {
               </p>
             )}
 
-            {top.length > 0 && (
-              <ul className="space-y-2">
-                {top.map(r => {
-                  const img = mepImage(r.memberId);
-                  return (
-                    <li
-                      key={r.memberId}
-                      className="border border-white/20 rounded-xl p-3 flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        {img && (
-                          <img
-                            src={img}
-                            alt={mepName(r.memberId)}
-                            className="w-10 h-10 rounded-full object-cover"
-                            loading="lazy"
-                          />
-                        )}
-                        <div>
-                          <div className="font-medium">{mepName(r.memberId)}</div>
-                          <div className="text-xs opacity-70">{mepGroup(r.memberId)}</div>
+            {top.length > 0 && (() => {
+              const top3 = top.slice(0, 3);
+
+              const WinnerCard = ({ id, pct }: { id: string; pct: number }) => {
+                const img = mepImage(id);
+                return (
+                  <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6">
+                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[#ffcc00] text-black px-2 py-1 rounded-md font-semibold">
+                      Tu mejor coincidencia
+                    </span>
+                    <div className="flex items-center gap-4 md:gap-5">
+                      {img ? (
+                        <img
+                          src={img}
+                          alt={mepName(id)}
+                          className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">
+                          👤
                         </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
+                        <div className="text-xs md:text-sm opacity-75">{mepGroup(id)}</div>
                       </div>
-                      <span className="font-mono">{Math.round(r.affinity * 100)}%</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                      <div className="text-right">
+                        <div className="text-3xl md:text-5xl font-black leading-none">{pct}%</div>
+                        <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              };
+
+              const SmallCard = ({ id, pct, place }: { id: string; pct: number; place: number }) => {
+                const img = mepImage(id);
+                return (
+                  <div className="rounded-xl border border-white/15 bg-white/5 p-3 flex items-center gap-3">
+                    <div className="w-6 h-6 rounded-full bg-[#ffcc00] text-black font-bold grid place-items-center text-xs">
+                      {place}
+                    </div>
+                    {img ? (
+                      <img
+                        src={img}
+                        alt={mepName(id)}
+                        className="w-10 h-10 rounded-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{mepName(id)}</div>
+                      <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
+                    </div>
+                    <div className="font-mono">{pct}%</div>
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-4">
+                  {/* Ganador en grande */}
+                  <WinnerCard id={top3[0].memberId} pct={Math.round(top3[0].affinity * 100)} />
+
+                  {/* Puestos 2 y 3 */}
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {top3[1] && (
+                      <SmallCard
+                        place={2}
+                        id={top3[1].memberId}
+                        pct={Math.round(top3[1].affinity * 100)}
+                      />
+                    )}
+                    {top3[2] && (
+                      <SmallCard
+                        place={3}
+                        id={top3[2].memberId}
+                        pct={Math.round(top3[2].affinity * 100)}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="mt-6 flex items-center justify-between">
               <button
