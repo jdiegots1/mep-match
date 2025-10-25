@@ -84,13 +84,13 @@ export default function QuizPage() {
           const aFav = Array.isArray(x.aFavor)
             ? x.aFavor
             : typeof x.aFavor === "string" && x.aFavor.trim()
-            ? [x.aFavor]
-            : [];
+              ? [x.aFavor]
+              : [];
           const enC = Array.isArray(x.enContra)
             ? x.enContra
             : typeof x.enContra === "string" && x.enContra.trim()
-            ? [x.enContra]
-            : [];
+              ? [x.enContra]
+              : [];
           return {
             id: idReal,
             q: qText,
@@ -152,7 +152,7 @@ export default function QuizPage() {
     vp.scrollTo({ left: slide.offsetLeft - (vp.clientWidth - slide.clientWidth) / 2, behavior: "smooth" });
   }, [i, total]);
 
-  // Snap al slide más cercano tras scroll manual
+  // Snap al más cercano tras scroll manual
   useEffect(() => {
     const vp = viewportRef.current;
     if (!vp) return;
@@ -211,7 +211,7 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-dvh flex flex-col p-6 relative">
-      {/* Oculta scrollbars del viewport del carrusel */}
+      {/* Oculta scrollbars del viewport */}
       <style jsx global>{`
         #quiz-viewport { -ms-overflow-style: none; scrollbar-width: none; }
         #quiz-viewport::-webkit-scrollbar { display: none; }
@@ -259,7 +259,7 @@ export default function QuizPage() {
                     <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[#ffcc00] text-black px-2 py-1 rounded-md font-semibold">Tu mejor coincidencia</span>
                     <div className="flex items-center gap-4 md:gap-5">
                       {img ? (<img src={img} alt={mepName(id)} className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40" loading="lazy" />)
-                           : (<div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">👤</div>)}
+                        : (<div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">👤</div>)}
                       <div className="flex-1">
                         <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
                         <div className="text-xs md:text-sm opacity-75">{mepGroup(id)}</div>
@@ -278,7 +278,7 @@ export default function QuizPage() {
                   <div className="rounded-xl border border-white/15 bg-white/5 p-3 flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full bg-[#ffcc00] text-black font-bold grid place-items-center text-xs">{place}</div>
                     {img ? (<img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover" loading="lazy" />)
-                         : (<div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>)}
+                      : (<div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>)}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{mepName(id)}</div>
                       <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
@@ -305,9 +305,9 @@ export default function QuizPage() {
           </div>
         </section>
       ) : (
-        /* CUESTIONARIO — carrusel full-bleed */
+        /* CUESTIONARIO — carrusel full-bleed con más separación */
         <section className="relative flex-1 w-full">
-          {/* Flechas en extremos de la pantalla */}
+          {/* Flechas en extremos */}
           <button
             aria-label="Pregunta anterior"
             onClick={gotoPrev}
@@ -325,7 +325,7 @@ export default function QuizPage() {
               hover:bg-white/20 transition z-20 ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
           >›</button>
 
-          {/* Viewport a pantalla completa (full-bleed) */}
+          {/* Viewport pantalla completa */}
           <div
             id="quiz-viewport"
             ref={viewportRef}
@@ -337,31 +337,32 @@ export default function QuizPage() {
               marginRight: "calc(50% - 50vw)",
             }}
           >
-            <div className="flex items-stretch gap-6 py-2 px-4 md:px-8">
+            {/* MÁS SEPARACIÓN ENTRE BLOQUES */}
+            <div className="flex items-stretch gap-16 md:gap-24 py-4 px-6 md:px-10">
               {questions.map((q, idx) => {
                 const isActive = idx === i;
                 return (
                   <div
                     key={q.id}
                     ref={el => { if (el) slideRefs.current[idx] = el; }}
-                    className={`flex-none w-[90vw] max-w-3xl scroll-ml-[5vw] rounded-2xl border border-white/20 bg-white/5 backdrop-blur
-                                transition-transform duration-300 ${isActive ? "scale-100 opacity-100" : "scale-[0.98] opacity-80"}`}
+                    className={`flex-none w-[80vw] max-w-3xl scroll-ml-[10vw] rounded-2xl border border-white/20 bg-white/5 backdrop-blur
+                                shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300
+                                ${isActive ? "opacity-100 scale-100" : "opacity-30 blur-[1px] scale-[0.95]"}`}
                     style={{ scrollSnapAlign: "center" as any }}
+                    aria-hidden={!isActive}
                   >
-                    <div className="p-6 md:p-8">
-                      {/* Enunciado grande */}
+                    <div className="p-7 md:p-8">
+                      {/* Enunciado */}
                       <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug">{q.q}</h2>
 
-                      {/* Botones de voto */}
+                      {/* Botones */}
                       <div className="mt-8 grid grid-cols-3 gap-4">
                         {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(([label, val]) => {
                           const pressed = choices[q.id] === val;
                           const base =
-                            val === 1
-                              ? "bg-green-200/90 text-green-900"
-                              : val === -1
-                              ? "bg-red-200/90 text-red-900"
-                              : "bg-gray-200/90 text-gray-900";
+                            val === 1 ? "bg-green-200/90 text-green-900"
+                            : val === -1 ? "bg-red-200/90 text-red-900"
+                            : "bg-gray-200/90 text-gray-900";
                           return (
                             <button
                               key={label}
@@ -376,7 +377,7 @@ export default function QuizPage() {
                         })}
                       </div>
 
-                      {/* Más información (negrita) */}
+                      {/* Más información */}
                       <button
                         className="mt-5 w-full text-sm font-bold hover:opacity-80"
                         onClick={() => setExpandedById(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
@@ -432,7 +433,7 @@ export default function QuizPage() {
             </div>
           </div>
 
-          {/* Botonera inferior fija */}
+          {/* Botonera inferior */}
           <div className="fixed left-1/2 -translate-x-1/2 bottom-10 w-[92%] max-w-3xl flex items-center justify-between z-20">
             <button
               onClick={back}
