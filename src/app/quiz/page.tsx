@@ -194,51 +194,54 @@ export default function QuizPage() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="w-full">
-              {/* Enunciado centrado, más ancho */}
-              <div className="max-w-5xl mx-auto">
-                <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug mb-8">
-                  {current.q}
-                </h2>
+            {/* Bloque TITULAR independiente y más ancho */}
+            <div className="max-w-5xl mx-auto text-center">
+              <div className="text-sm opacity-80 mb-2">
+                Pregunta {index + 1} de {total}
+              </div>
+              <h2 className="text-2xl md:text-3xl font-semibold leading-snug mb-8">
+                {current.q}
+              </h2>
+            </div>
 
-                {/* Tarjeta acciones — más separada/abajo */}
-                <div className="mt-6 rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {([
-                      ["A favor", 1, "bg-green-200/90 text-green-900"],
-                      ["En contra", -1, "bg-red-200/90 text-red-900"],
-                      ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
-                    ] as const).map(([label, val, base]) => {
-                      const pressed = choices[current.id] === val;
-                      return (
-                        <button
-                          key={label}
-                          className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border ${base} ${
-                            pressed
-                              ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
-                              : "border-transparent"
-                          }`}
-                          onClick={() => vote(current.id, val)}
-                          aria-pressed={pressed}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-5 flex items-center justify-between gap-3">
-                    <InfoDialog q={current} />
-                    <div className="text-xs md:text-sm opacity-70">
-                      {choices[current.id] !== undefined
-                        ? "Podés modificar tu respuesta"
-                        : "Elegí una opción"}
-                    </div>
-                  </div>
+            {/* Bloque RESPUESTAS independiente, ancho fijo (no cambia) */}
+            <div className="max-w-3xl mx-auto">
+              <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {([
+                    ["A favor", 1, "bg-green-200/90 text-green-900"],
+                    ["En contra", -1, "bg-red-200/90 text-red-900"],
+                    ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
+                  ] as const).map(([label, val, base]) => {
+                    const pressed = choices[current.id] === val;
+                    return (
+                      <button
+                        key={label}
+                        className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border cursor-pointer ${base} ${
+                          pressed
+                            ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
+                            : "border-transparent"
+                        }`}
+                        onClick={() => vote(current.id, val)}
+                        aria-pressed={pressed}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                <div className="h-[140px]" />
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  <InfoDialog q={current} />
+                  <div className="text-xs md:text-sm opacity-70">
+                    {choices[current.id] !== undefined
+                      ? "Podés modificar tu respuesta"
+                      : "Elegí una opción"}
+                  </div>
+                </div>
               </div>
+
+              <div className="h-[140px]" />
             </div>
           </motion.section>
         ) : (
@@ -265,7 +268,7 @@ export default function QuizPage() {
                       role="tab"
                       aria-selected={mode === m}
                       onClick={() => setMode(m)}
-                      className={`px-3 py-1.5 text-sm ${
+                      className={`px-3 py-1.5 text-sm cursor-pointer ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : ""
                       }`}
                     >
@@ -354,18 +357,18 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Botonera inferior fija — SIEMPRE visible y SIN transiciones */}
+      {/* Botonera inferior fija — SIEMPRE visible */}
       <div className="fixed left-1/2 -translate-x-1/2 bottom-8 w-[92%] max-w-3xl flex items-center justify-between z-20">
         <button
           onClick={() => setIndex((i) => Math.max(0, i - 1))}
           disabled={!questions.length || index === 0 || done}
-          className={`px-4 py-2 rounded-lg ${index === 0 || done ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10"}`}
+          className={`px-4 py-2 rounded-lg ${index === 0 || done ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 cursor-pointer"}`}
         >
           Volver atrás
         </button>
         <button
           onClick={() => setDone(true)}
-          className="px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold"
+          className="px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold cursor-pointer"
         >
           Ver resultados
         </button>
@@ -380,7 +383,7 @@ function InfoDialog({ q }: { q: Question }) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
-        <button className="px-4 py-2 rounded-xl text-sm font-bold bg-white/80 text-black">
+        <button className="px-4 py-2 rounded-xl text-sm font-bold bg-white/80 text-black cursor-pointer">
           Más información
         </button>
       </Dialog.Trigger>
@@ -425,7 +428,7 @@ function InfoDialog({ q }: { q: Question }) {
 
           {q.url && (
             <div className="mt-4 text-sm">
-              <a className="underline hover:opacity-80" href={q.url!} target="_blank" rel="noreferrer">
+              <a className="underline hover:opacity-80 cursor-pointer" href={q.url!} target="_blank" rel="noreferrer">
                 Fuente oficial
               </a>
             </div>
@@ -433,7 +436,7 @@ function InfoDialog({ q }: { q: Question }) {
 
           <Dialog.Close asChild>
             <button
-              className="mt-5 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black"
+              className="mt-5 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
               aria-label="Cerrar"
             >
               Cerrar
