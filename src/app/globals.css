@@ -2,17 +2,23 @@
 @import "swiper/css";
 @import "swiper/css/navigation";
 
+/* ====== Tipografía Tailwind v4: mapea font-sans a Roboto ======
+   Nota: @theme no es un at-rule CSS estándar; la variable --font-sans
+   se define en :root más abajo para evitar errores de compilación. */
+
 /* Paleta UE */
 :root{
   --eu-blue:#003399;
   --eu-yellow:#ffcc00;
 
+  /* Tipografía: mapea font-sans a Roboto para compatibilidad con Tailwind v4 */
+  --font-sans: var(--font-roboto), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+
   /* Fondo (oscuro → claro) */
   --bg-dark:#001a66;
   --bg-light:#003399;
 }
-
-/* Asegura que el documento puede crecer y el fondo lo cubre todo */
 html, body{
   min-height:100%;
 }
@@ -161,9 +167,10 @@ body{ overflow-x:hidden; }
     padding: 12px 12px calc(84px + env(safe-area-inset-bottom)) !important;
   }
 
-  /* Títulos grandes → más compactos en móvil */
+  /* = Pregunta (h2) más pequeña SOLO en móvil = */
   main h2{
-    font-size: clamp(1.2rem, 5.2vw, 1.5rem) !important;
+    /* más pequeño que antes */
+    font-size: clamp(1.05rem, 4.2vw, 1.35rem) !important;
     line-height: 1.25 !important;
   }
   main h3{
@@ -171,7 +178,6 @@ body{ overflow-x:hidden; }
   }
 
   /* ——— Barra inferior fija ——— */
-  /* Asegura altura estable y safe-area padding */
   .fixed.left-0.right-0.bottom-0{
     padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
   }
@@ -185,20 +191,9 @@ body{ overflow-x:hidden; }
   }
 
   /* ——— Diálogos (Radix) a pantalla completa ———
-     NOTA: apuntamos a las clases de Tailwind que ya usas en los Content. */
-  /* Más información: w-[min(92vw,820px)] → fullscreen en móvil */
-  .w-\[min\(92vw\,820px\)\]{
-    width: 100vw !important;
-    height: 100dvh !important;
-    inset: 0 !important;
-    left: 0 !important; top: 0 !important;
-    transform: none !important;
-    max-height: none !important;
-    border-radius: 0 !important;
-    padding: 16px !important;
-  }
-  /* Comparativa: w-[min(92vw,980px)] → fullscreen en móvil */
-  .w-\[min\(92vw\,980px\)\]{
+     Ajustado a tus clases reales: w-[92vw] + max-w-[820px]/[980px] */
+  .w-\[92vw\].max-w-\[820px\],
+  .w-\[92vw\].max-w-\[980px\]{
     width: 100vw !important;
     height: 100dvh !important;
     inset: 0 !important;
@@ -210,8 +205,8 @@ body{ overflow-x:hidden; }
   }
 
   /* Título del diálogo un poco más pequeño */
-  .w-\[min\(92vw\,820px\)\] .text-lg,
-  .w-\[min\(92vw\,980px\)\] .text-lg{
+  .w-\[92vw\].max-w-\[820px\] .text-lg,
+  .w-\[92vw\].max-w-\[980px\] .text-lg{
     font-size: 1.05rem !important;
   }
 
@@ -248,22 +243,18 @@ body{ overflow-x:hidden; }
   }
 
   /* ——— Ranking ——— */
-  /* Fila un poco más alta y con más espacio táctil */
   .border-b.border-white\/10.py-2{
     padding-top: 10px !important;
     padding-bottom: 10px !important;
   }
-  /* Columna de posiciones más estrecha en móvil */
   .w-24.flex.items-center.justify-start.gap-2{
     width: 72px !important;
     gap: 6px !important;
   }
-  /* Avatar de lista algo mayor para legibilidad */
   .w-9.h-9.rounded-full{
     width: 40px !important;
     height: 40px !important;
   }
-  /* % a la derecha: tipografía algo menor y ancho flexible */
   .w-24.text-right.font-mono{
     width: 72px !important;
     font-size: 12px !important;
@@ -276,13 +267,11 @@ body{ overflow-x:hidden; }
   }
 
   /* ——— Progreso superior ——— */
-  /* Barra un pelín más alta en móvil */
   .h-2.rounded-full{
     height: 9px !important;
   }
 
   /* ——— Botón “Cerrar” en barra inferior cuando hay overlay ——— */
-  /* (por si el SO reduce el área táctil) */
   .fixed.left-0.right-0.bottom-0 button:only-child{
     min-width: 48%;
     font-weight: 700;
