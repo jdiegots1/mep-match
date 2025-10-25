@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 import useEmblaCarousel from "embla-carousel-react";
@@ -62,7 +62,7 @@ export default function QuizPage() {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
     align: "center",
-    watchDrag: true,
+    containScroll: "trimSnaps",
     inViewThreshold: 0.6,
     skipSnaps: false,
   });
@@ -143,6 +143,13 @@ export default function QuizPage() {
     // centrar 1ª slide al montar
     emblaApi.scrollTo(0, true);
   }, [emblaApi, onSelect]);
+
+  // Re-centrar cuando ya hay slides (y tras reInit)
+  useEffect(() => {
+    if (!emblaApi || total === 0) return;
+    emblaApi.reInit();
+    requestAnimationFrame(() => emblaApi.scrollTo(0, true));
+  }, [emblaApi, total]);
 
   // Navegación determinista
   const goTo = useCallback(
@@ -282,7 +289,8 @@ export default function QuizPage() {
               }}
               ref={emblaRef}
             >
-              <div className="flex items-stretch gap-16 md:gap-24 px-6 md:px-10 py-4">
+              {/* Container sin gap ni padding horizontal; padding por slide */}
+              <div className="flex items-stretch py-4">
                 {questions.map((q, idx) => {
                   const active = idx === index;
                   const answered = choices[q.id] !== undefined;
@@ -290,7 +298,7 @@ export default function QuizPage() {
                   return (
                     <div
                       key={q.id}
-                      className={`flex-none w-[86vw] max-w-3xl select-none transition-all duration-300 ${
+                      className={`flex-none px-6 md:px-10 w-[86vw] max-w-3xl select-none transition-all duration-300 ${
                         active ? "opacity-100 scale-100" : "opacity-35 scale-[0.97]"
                       }`}
                       aria-hidden={!active}
