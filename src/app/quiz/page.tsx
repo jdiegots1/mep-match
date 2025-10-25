@@ -78,6 +78,11 @@ export default function QuizPage() {
   // ranking state
   const [search, setSearch] = useState("");
   const [detailFor, setDetailFor] = useState<string | null>(null);
+  const [showCount, setShowCount] = useState(25); // filas visibles en ranking
+
+  useEffect(() => {
+    setShowCount(25); // reset al cambiar búsqueda
+  }, [search]);
 
   const total = questions.length;
   const current = questions[index];
@@ -168,7 +173,7 @@ export default function QuizPage() {
     return scoreMembers(filteredChoices, matrix, {
       coveragePenalty: mode === "coverage",
       minOverlap: 5,
-    });
+    }); // ya viene ordenado desc
   }, [filteredChoices, matrix, mode]);
 
   const top = useMemo(() => {
@@ -176,24 +181,41 @@ export default function QuizPage() {
     return computeScores.slice(0, 10);
   }, [done, computeScores]);
 
+  // Ranking con filtro + posiciones con empate
   const rankedAll = useMemo(() => {
     if (!done) return [];
     const q = search.trim().toLowerCase();
-    const list = computeScores.map((s, i) => ({
-      pos: i + 1,
-      ...s,
-    }));
-    if (!q) return list;
-    return list.filter((x) => {
-      const m = members.find((mm) => mm.id === x.memberId);
+
+    // filtrar por búsqueda
+    let arr = computeScores.filter((s) => {
+      if (!q) return true;
+      const m = members.find((mm) => mm.id === s.memberId);
       const name = m?.name?.toLowerCase() ?? "";
       const group = m?.group?.toLowerCase() ?? "";
       const country = m?.country?.toLowerCase() ?? "";
-      return (
-        name.includes(q) ||
-        group.includes(q) ||
-        country.includes(q)
-      );
+      return name.includes(q) || group.includes(q) || country.includes(q);
+    });
+
+    // calcular % redondeado y posiciones con empates (por % mostrado)
+    let lastPct: number | null = null;
+    let currentPos = 0;
+    return arr.map((s, i) => {
+      const pct = Number((s.affinity * 100).toFixed(2));
+      if (lastPct === null || pct !== lastPct) {
+        currentPos = i + 1;
+        lastPct = pct;
+      }
+      const m = members.find((mm) => mm.id === s.memberId);
+      return {
+        memberId: s.memberId,
+        pct,
+        pos: currentPos,
+        showPos: i === 0 || pct !== Number((arr[i - 1].affinity * 100).toFixed(2)),
+        name: m?.name ?? s.memberId,
+        group: m?.group ?? "—",
+        country: m?.country ?? "—",
+        image: m?.image ?? m?.photo ?? null,
+      };
     });
   }, [done, computeScores, search, members]);
 
@@ -373,7 +395,6 @@ export default function QuizPage() {
                 <>
                   {(() => {
                     const top3 = top.slice(0, 3);
-                    const pct = (x: number) => Number((x * 100).toFixed(2));
 
                     const WinnerCard = ({ id, p }: { id: string; p: number }) => {
                       const img = mepImage(id);
@@ -444,34 +465,70 @@ export default function QuizPage() {
 
                   {/* Ranking de coincidencia */}
                   <div className="mt-10">
-                    <h3 className="text-xl font-semibold mb-3">Ranking de coincidencia</h3>
+                    <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Buscar por nombre, grupo o país…"
                       className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-3"
                     />
-                    <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5">
-                      {rankedAll.slice(0, 200).map((r) => {
-                        const m = mepById(r.memberId);
-                        return (
-                          <div key={r.memberId} className="flex items-center gap-3 px-4 py-2">
-                            <div className="w-8 text-center font-semibold">{r.pos}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate">{m?.name ?? r.memberId}</div>
-                              <div className="text-xs opacity-70 truncate">{m?.group ?? "—"} • {m?.country ?? "—"}</div>
+
+                    <div className="divide-y divide-white/10 rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+                      <AnimatePresence initial={false}>
+                        {rankedAll.slice(0, showCount).map((r) => (
+                          <motion.div
+                            key={r.memberId}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.18 }}
+                            className="flex items-center gap-3 px-4 py-2"
+                          >
+                            <div className="w-8 text-center font-semibold">
+                              {r.showPos ? r.pos : ""}
                             </div>
-                            <div className="w-24 text-right font-mono">{(r.affinity * 100).toFixed(2)}%</div>
+
+                            {/* foto */}
+                            {r.image ? (
+                              <img
+                                src={r.image}
+                                alt={r.name}
+                                className="w-9 h-9 rounded-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-full bg-white/10 grid place-items-center">👤</div>
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{r.name}</div>
+                              <div className="text-xs opacity-70 truncate">{r.group} • {r.country}</div>
+                            </div>
+                            <div className="w-24 text-right font-mono">{r.pct.toFixed(2)}%</div>
                             <button
                               onClick={() => setDetailFor(r.memberId)}
                               className="ml-3 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 transition text-sm"
                             >
-                              Ver detalle
+                              Mira sus votos
                             </button>
-                          </div>
-                        );
-                      })}
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
                     </div>
+
+                    {/* Mostrar más (texto clicable) */}
+                    {rankedAll.length > showCount && (
+                      <div className="text-center mt-3">
+                        <span
+                          onClick={() => setShowCount((c) => c + 25)}
+                          className="cursor-pointer underline underline-offset-2 opacity-80 hover:opacity-100"
+                          role="button"
+                          aria-label="Mostrar más resultados"
+                        >
+                          Mostrar más
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -650,18 +707,11 @@ function DetailDialog({
   if (!memberId) return null;
 
   const rows = questions
-    .filter((q) => matrix[q.id]) // sólo preguntas con matriz
+    .filter((q) => matrix[q.id])
     .map((q) => {
-      // voto del MEP según matriz; undefined => ausencia
       const mepVote = (matrix as any)[q.id]?.[memberId] as number | undefined;
-      const myVote = choices[q.id]; // puede ser undefined si no respondí esa (aunque en este flujo, suelen estar)
-
-      return {
-        id: q.id,
-        q: q.q,
-        myVote,
-        mepVote,
-      };
+      const myVote = choices[q.id];
+      return { id: q.id, q: q.q, myVote, mepVote };
     });
 
   return (
@@ -688,16 +738,10 @@ function DetailDialog({
                 <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
                   <div className="px-3 py-2 text-sm">{r.q}</div>
                   <div className="px-3 py-2 flex items-center justify-center">
-                    <span
-                      className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`}
-                      title={labelFromVal(r.myVote)}
-                    />
+                    <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
                   </div>
                   <div className="px-3 py-2 flex items-center justify-center">
-                    <span
-                      className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`}
-                      title={labelFromVal(r.mepVote)}
-                    />
+                    <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
                   </div>
                 </div>
               ))}
