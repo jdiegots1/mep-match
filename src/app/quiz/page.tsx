@@ -379,7 +379,8 @@ export default function QuizPage() {
                     Pregunta {index + 1} de {total}
                   </div>
                   <div className="h-full flex items-end justify-center">
-                    <h2 className="text-2xl md:text-3xl font-semibold leading-snug text-center px-2">
+                    {/* ↓↓↓ TEXTO MÁS PEQUEÑO EN MÓVIL */}
+                    <h2 className="text-xl md:text-3xl font-semibold leading-snug text-center px-2">
                       {current.q}
                     </h2>
                   </div>
@@ -468,7 +469,8 @@ export default function QuizPage() {
                       role="tab"
                       aria-selected={mode === m}
                       onClick={() => setMode(m)}
-                      className={`px-3 py-1.5 text-sm cursor-pointer transition ${
+                      // ↓↓↓ MÁS PEQUEÑO EN MÓVIL; igual que estaba en desktop
+                      className={`px-3 py-1.5 text-xs md:text-sm cursor-pointer transition ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
                       }`}
                     >
@@ -745,9 +747,9 @@ export default function QuizPage() {
                                 <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
                               </div>
 
-                              {/* En sm+: porcentaje y CTA a la derecha; en móvil va abajo */}
-                              <div className="hidden sm:flex items-center gap-3 shrink-0">
-                                <div className="text-right font-mono w-24">{r.pct.toFixed(2)}%</div>
+                              {/* DERECHA (solo escritorio): más aire y pegado al borde derecho */}
+                              <div className="hidden sm:flex items-center md:gap-6 lg:gap-10 shrink-0 ml-auto pr-2 md:pr-4">
+                                <div className="text-right font-mono w-28 md:w-32 lg:w-40">{r.pct.toFixed(2)}%</div>
                                 <span
                                   onClick={() => setDetailFor(r.memberId)}
                                   className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
@@ -916,72 +918,74 @@ function InfoDialog({
           />
         </Dialog.Overlay>
 
+        {/* ===== Centro real en móvil: el Content actúa como CONTENEDOR flex ===== */}
         <Dialog.Content asChild>
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-[95] w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
-             rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-             shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
-            <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
+            {/* Panel */}
+            <div className="w-[92vw] max-w-[820px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto">
+              <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
-            {/* Descripción */}
-            {q.queSeVota ? (
-              <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
-            ) : (
-              <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
-            )}
+              {/* Descripción */}
+              {q.queSeVota ? (
+                <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
+              ) : (
+                <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
+              )}
 
-            {/* Enlace centrado */}
-            {q.url && (
-              <div className="mt-4 mb-2 text-sm text-center">
-                <a
-                  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition cursor-pointer"
-                  href={q.url!}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Ampliar información
-                </a>
-              </div>
-            )}
+              {/* Enlace centrado */}
+              {q.url && (
+                <div className="mt-4 mb-2 text-sm text-center">
+                  <a
+                    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition cursor-pointer"
+                    href={q.url!}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Ampliar información
+                  </a>
+                </div>
+              )}
 
-            {(q.aFavor?.length || q.enContra?.length) ? (
-              <div className="mt-5 grid md:grid-cols-2 gap-6">
-                {q.aFavor?.length ? (
-                  <div>
-                    <div className="w-full flex justify-center mb-3">
-                      <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-700 text-white">
-                        Argumentos a favor
-                      </span>
+              {(q.aFavor?.length || q.enContra?.length) ? (
+                <div className="mt-5 grid md:grid-cols-2 gap-6">
+                  {q.aFavor?.length ? (
+                    <div>
+                      <div className="w-full flex justify-center mb-3">
+                        <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-700 text-white">
+                          Argumentos a favor
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-sm opacity-90 text-justify">
+                        {q.aFavor.map((t, i) => (
+                          <p key={i}>{t}</p>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-2 text-sm opacity-90 text-justify">
-                      {q.aFavor.map((t, i) => (
-                        <p key={i}>{t}</p>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {q.enContra?.length ? (
-                  <div>
-                    <div className="w-full flex justify-center mb-3">
-                      <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-700 text-white">
-                        Argumentos en contra
-                      </span>
+                  {q.enContra?.length ? (
+                    <div>
+                      <div className="w-full flex justify-center mb-3">
+                        <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-700 text-white">
+                          Argumentos en contra
+                        </span>
+                      </div>
+                      <div className="space-y-2 text-sm opacity-90 text-justify">
+                        {q.enContra.map((t, i) => (
+                          <p key={i}>{t}</p>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-2 text-sm opacity-90 text-justify">
-                      {q.enContra.map((t, i) => (
-                        <p key={i}>{t}</p>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -1031,40 +1035,42 @@ function DetailDialog({
             exit={{ opacity: 0 }}
           />
         </Dialog.Overlay>
+        {/* ===== Centro real en móvil ===== */}
         <Dialog.Content asChild>
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 z-[95] w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
-                       rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-                       shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
+            className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
-            <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
-              Comparativa de votos — {mepName(memberId)}{" "}
-              <span className="opacity-70">({mepGroup(memberId)})</span>
-              <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
-            </Dialog.Title>
+            {/* Panel */}
+            <div className="w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto">
+              <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
+                Comparativa de votos — {mepName(memberId)}{" "}
+                <span className="opacity-70">({mepGroup(memberId)})</span>
+                <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
+              </Dialog.Title>
 
-            <div className="rounded-xl border border-white/15 overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
-                <div className="px-3 py-2 font-semibold">Pregunta</div>
-                <div className="px-3 py-2 font-semibold text-center">Tú</div>
-                <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
-              </div>
-              <div className="divide-y divide-white/10">
-                {rows.map((r) => (
-                  <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
-                    <div className="px-3 py-2 text-sm">{r.q}</div>
-                    <div className="px-3 py-2 flex items-center justify-center">
-                      <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+              <div className="rounded-xl border border-white/15 overflow-hidden">
+                <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
+                  <div className="px-3 py-2 font-semibold">Pregunta</div>
+                  <div className="px-3 py-2 font-semibold text-center">Tú</div>
+                  <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
+                </div>
+                <div className="divide-y divide-white/10">
+                  {rows.map((r) => (
+                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
+                      <div className="px-3 py-2 text-sm">{r.q}</div>
+                      <div className="px-3 py-2 flex items-center justify-center">
+                        <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+                      </div>
+                      <div className="px-3 py-2 flex items-center justify-center">
+                        <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
+                      </div>
                     </div>
-                    <div className="px-3 py-2 flex items-center justify-center">
-                      <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </motion.div>
