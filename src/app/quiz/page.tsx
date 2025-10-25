@@ -194,58 +194,70 @@ export default function QuizPage() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            {/* TITULAR con altura reservada para que la tarjeta de respuestas no se mueva */}
-            <div className="max-w-5xl mx-auto text-center">
-              <div className="text-sm opacity-80 mb-2">
-                Pregunta {index + 1} de {total}
-              </div>
-
-              {/* Altura fija (responsive) + alineado abajo para textos cortos */}
-              <div className="min-h-[120px] md:min-h-[150px] lg:min-h-[170px] flex items-end justify-center">
-                <h2 className="text-2xl md:text-3xl font-semibold leading-snug">
-                  {current.q}
-                </h2>
-              </div>
-            </div>
-
-            {/* RESPUESTAS — bloque independiente, separado de forma constante */}
-            <div className="max-w-3xl mx-auto mt-10">
-              <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {([
-                    ["A favor", 1, "bg-green-200/90 text-green-900"],
-                    ["En contra", -1, "bg-red-200/90 text-red-900"],
-                    ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
-                  ] as const).map(([label, val, base]) => {
-                    const pressed = choices[current.id] === val;
-                    return (
-                      <button
-                        key={label}
-                        className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border cursor-pointer ${base} ${
-                          pressed
-                            ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
-                            : "border-transparent"
-                        }`}
-                        onClick={() => vote(current.id, val)}
-                        aria-pressed={pressed}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-5 flex items-center justify-between gap-3">
-                  <InfoDialog q={current} />
-                  <div className="text-xs md:text-sm opacity-70">
-                    {choices[current.id] !== undefined
-                      ? "Podés modificar tu respuesta"
-                      : "Elegí una opción"}
+            {/* GRID con altura EXACTA para el bloque de título (no varía) */}
+            <div
+              className="
+                max-w-5xl mx-auto 
+                grid 
+                grid-rows-[200px_auto] md:grid-rows-[240px_auto] lg:grid-rows-[280px_auto]
+              "
+            >
+              {/* Fila 1: encabezado y título — fijo */}
+              <div className="row-start-1 row-end-2 col-span-1">
+                <div className="text-center">
+                  <div className="text-sm opacity-80 mb-2">
+                    Pregunta {index + 1} de {total}
+                  </div>
+                  <div className="h-full flex items-end justify-center">
+                    <h2 className="text-2xl md:text-3xl font-semibold leading-snug text-center px-2">
+                      {current.q}
+                    </h2>
                   </div>
                 </div>
               </div>
 
-              <div className="h-[140px]" />
+              {/* Fila 2: RESPUESTAS — siempre a la misma altura */}
+              <div className="row-start-2 row-end-3 col-span-1">
+                {/* separador vertical extra sin tocar el título */}
+                <div className="max-w-3xl mx-auto mt-14 md:mt-16">
+                  <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {([
+                        ["A favor", 1, "bg-green-200/90 text-green-900"],
+                        ["En contra", -1, "bg-red-200/90 text-red-900"],
+                        ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
+                      ] as const).map(([label, val, base]) => {
+                        const pressed = choices[current.id] === val;
+                        return (
+                          <button
+                            key={label}
+                            className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border cursor-pointer ${base} ${
+                              pressed
+                                ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
+                                : "border-transparent"
+                            }`}
+                            onClick={() => vote(current.id, val)}
+                            aria-pressed={pressed}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-5 flex items-center justify-between gap-3">
+                      <InfoDialog q={current} />
+                      <div className="text-xs md:text-sm opacity-70">
+                        {choices[current.id] !== undefined
+                          ? "Podés modificar tu respuesta"
+                          : "Elegí una opción"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-[140px]" />
+                </div>
+              </div>
             </div>
           </motion.section>
         ) : (
@@ -295,7 +307,6 @@ export default function QuizPage() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -16 }}
                   transition={{ duration: 0.2 }}
-                  className="transition-opacity duration-200"
                 >
                   {(() => {
                     const top3 = top.slice(0, 3);
