@@ -57,7 +57,6 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({}); // voteId -> +1|-1|0
   const [i, setI] = useState(0);
   const [done, setDone] = useState(false);
-  // expanded por pregunta
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({});
   const [mode, setMode] = useState<Mode>("coverage"); // selector de modo
 
@@ -76,13 +75,11 @@ export default function QuizPage() {
 
       if (!alive) return;
 
-      // índice id -> url oficial
       const vIdx: Record<string, VoteRef> = {};
       (votesEs as any[]).forEach(v => {
         vIdx[String(v.id)] = { id: String(v.id), url: v.url ?? null };
       });
 
-      // normaliza
       const normalized: Question[] = (qRaw as QuestionInput[])
         .map(x => {
           const idReal = String(x.voteId ?? x.id ?? "").trim();
@@ -107,16 +104,13 @@ export default function QuizPage() {
         })
         .filter(Boolean) as Question[];
 
-      // (Opcional) filtra preguntas cuyo id no esté en matrix
       const normalizedFiltered = normalized.filter(q => !!(mat as Matrix)[q.id]);
-
       const picked = shuffle(normalizedFiltered).slice(0, 10);
 
       setVotesIdx(vIdx);
       setQuestions(picked);
       setMembers(m);
       setMatrix(mat);
-      // reinicia expansión por pregunta
       setExpandedById({});
       setI(0);
       setDone(false);
@@ -162,6 +156,13 @@ export default function QuizPage() {
     if (i > 0) setI(i - 1);
   }
 
+  function gotoPrev() {
+    if (i > 0) setI(i - 1);
+  }
+  function gotoNext() {
+    if (i < total - 1) setI(i + 1);
+  }
+
   // solo puntuamos votos que existan en matrix
   const filteredChoices = useMemo(() => {
     const out: Record<string, number> = {};
@@ -171,12 +172,11 @@ export default function QuizPage() {
     return out;
   }, [choices, matrix]);
 
-  // resultados (modo seleccionable)
   const top = useMemo(() => {
     if (!done) return [];
     if (Object.keys(filteredChoices).length < 5) return [];
     return scoreMembers(filteredChoices, matrix, {
-      coveragePenalty: mode === "coverage", // “Más realista”
+      coveragePenalty: mode === "coverage",
       minOverlap: 5,
     }).slice(0, 10);
   }, [done, filteredChoices, matrix, mode]);
@@ -194,8 +194,12 @@ export default function QuizPage() {
     );
   }
 
+  // helpers para previews borrosas
+  const prevQ = i > 0 ? questions[i - 1] : null;
+  const nextQ = i < total - 1 ? questions[i + 1] : null;
+
   return (
-    <main className="min-h-dvh flex flex-col p-6">
+    <main className="min-h-dvh flex flex-col p-6 relative">
       {/* Cabecera */}
       <header className="max-w-4xl w-full mx-auto mb-4 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
@@ -214,7 +218,7 @@ export default function QuizPage() {
       </div>
 
       {/* Contenido */}
-      <section className="flex-1 grid place-items-center w-full">
+      <section className="flex-1 grid place-items-center w-full relative">
         {/* RESULTADOS */}
         {done ? (
           <div className="w-full max-w-3xl fade-in">
@@ -324,10 +328,7 @@ export default function QuizPage() {
 
               return (
                 <div className="space-y-4">
-                  {/* Ganador en grande */}
                   <WinnerCard id={top3[0].memberId} pct={Math.round(top3[0].affinity * 100)} />
-
-                  {/* Puestos 2 y 3 */}
                   <div className="grid sm:grid-cols-2 gap-3">
                     {top3[1] && (
                       <SmallCard
@@ -359,151 +360,166 @@ export default function QuizPage() {
             </div>
           </div>
         ) : (
-          // CARRUSEL de preguntas
-          <div className="w-full max-w-3xl">
-            {/* Encabezado de paso */}
-            <div className="text-sm opacity-80 mb-2">
-              Pregunta {i + 1} de {total}
+          // PREGUNTA + TARJETA FIJA
+          <div className="w-full max-w-3xl relative">
+            {/* Enunciado FUERA del recuadro */}
+            <div className="mb-3">
+              <div className="text-sm opacity-80 mb-1">Pregunta {i + 1} de {total}</div>
+              <h2 className="text-xl font-semibold">{current.q}</h2>
             </div>
 
-            {/* Pista del carrusel */}
-            <div className="relative overflow-hidden rounded-2xl">
+            {/* Previews borrosos izquierda/derecha */}
+            {prevQ && (
               <div
-                className="flex transition-transform duration-500 ease-in-out"
-                style={{ transform: `translateX(-${i * 100}%)` }}
+                className="hidden sm:block absolute -left-6 top-1/2 -translate-y-1/2 w-40 pointer-events-none select-none opacity-40 blur-[2px]"
+                aria-hidden="true"
               >
-                {questions.map((q) => {
-                  const expanded = !!expandedById[q.id];
-                  const isActive = q.id === current.id;
-                  return (
-                    <div key={q.id} className="w-full shrink-0 px-0">
-                      <div className={`border border-white/20 rounded-2xl p-5 bg-white/5 backdrop-blur ${isActive ? "opacity-100" : "opacity-60"}`}>
-                        {/* ENUNCIADO */}
-                        <h2 className="text-xl font-semibold">
-                          {q.q}
-                        </h2>
-
-                        {/* Botones de voto */}
-                        <div className="mt-5 grid sm:grid-cols-3 gap-3">
-                          {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(
-                            ([label, val]) => {
-                              const isPressed = choices[q.id] === val;
-                              const base =
-                                val === 1
-                                  ? "bg-green-200/90 text-green-900"
-                                  : val === -1
-                                  ? "bg-red-200/90 text-red-900"
-                                  : "bg-gray-200/90 text-gray-900";
-                              return (
-                                <button
-                                  key={label}
-                                  className={`px-4 py-3 rounded-xl font-semibold hover:opacity-95 transition border ${
-                                    isPressed ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"
-                                  } ${base}`}
-                                  onClick={() => pick(q.id, val)}
-                                  aria-pressed={isPressed}
-                                >
-                                  {label}
-                                </button>
-                              );
-                            }
-                          )}
-                        </div>
-
-                        {/* Toggle “Más información” (negrita, sin subrayado ni flecha) */}
-                        <button
-                          className="mt-4 w-full flex items-center justify-center text-sm font-bold hover:opacity-80"
-                          onClick={() =>
-                            setExpandedById((prev) => ({ ...prev, [q.id]: !prev[q.id] }))
-                          }
-                          aria-expanded={expanded}
-                          aria-controls={`more-info-${q.id}`}
-                        >
-                          Más información
-                        </button>
-
-                        {expanded && (
-                          <div id={`more-info-${q.id}`} className="mt-4 border border-white/15 rounded-xl p-4 bg-white/5">
-                            {q.queSeVota && (
-                              <>
-                                <h3 className="font-medium mb-2">Qué se vota</h3>
-                                <p className="text-sm opacity-90 whitespace-pre-line">{q.queSeVota}</p>
-                              </>
-                            )}
-
-                            {(q.aFavor?.length || q.enContra?.length) ? (
-                              <div className="mt-4 grid md:grid-cols-2 gap-4">
-                                {q.aFavor?.length ? (
-                                  <div>
-                                    <h4 className="font-semibold mb-1">Argumentos a favor</h4>
-                                    <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
-                                      {q.aFavor.map((t, idx) => <li key={idx}>{t}</li>)}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                                {q.enContra?.length ? (
-                                  <div>
-                                    <h4 className="font-semibold mb-1">Argumentos en contra</h4>
-                                    <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
-                                      {q.enContra.map((t, idx) => <li key={idx}>{t}</li>)}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            {q.url && (
-                              <div className="mt-3 text-sm">
-                                <a
-                                  className="underline hover:opacity-80"
-                                  href={q.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  Fuente oficial
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Controles bajo el carrusel */}
-            <div className="mt-4 flex items-center justify-between">
-              <button
-                onClick={back}
-                disabled={i === 0}
-                className={`px-4 py-2 rounded-lg transition ${
-                  i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"
-                }`}
-              >
-                Volver atrás
-              </button>
-
-              <div className="flex items-center gap-2">
-                {/* Dots del carrusel */}
-                <div className="hidden sm:flex items-center gap-2 mr-2">
-                  {questions.map((q, idx) => (
-                    <button
-                      key={q.id}
-                      aria-label={`Ir a la pregunta ${idx + 1}`}
-                      className={`w-2.5 h-2.5 rounded-full transition ${
-                        idx === i ? "bg-[#ffcc00]" : "bg-white/20 hover:bg-white/30"
-                      }`}
-                      onClick={() => setI(idx)}
-                    />
-                  ))}
+                <div className="text-xs line-clamp-3">
+                  {prevQ.q}
                 </div>
-                {/* Usamos showResults() para recordar desde qué pregunta entramos */}
-                <button onClick={showResults} className="btn-eu">
-                  Ver resultados
-                </button>
               </div>
+            )}
+            {nextQ && (
+              <div
+                className="hidden sm:block absolute -right-6 top-1/2 -translate-y-1/2 w-40 text-right pointer-events-none select-none opacity-40 blur-[2px]"
+                aria-hidden="true"
+              >
+                <div className="text-xs line-clamp-3">
+                  {nextQ.q}
+                </div>
+              </div>
+            )}
+
+            {/* TARJETA FIJA (altura constante) */}
+            <div className="relative">
+              <div className="border border-white/20 rounded-2xl bg-white/5 backdrop-blur p-5 h-[360px] md:h-[380px] flex flex-col overflow-hidden">
+                {/* Botones de voto */}
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(
+                    ([label, val]) => {
+                      const isPressed = choices[current.id] === val;
+                      const base =
+                        val === 1
+                          ? "bg-green-200/90 text-green-900"
+                          : val === -1
+                          ? "bg-red-200/90 text-red-900"
+                          : "bg-gray-200/90 text-gray-900";
+                      return (
+                        <button
+                          key={label}
+                          className={`px-4 py-3 rounded-xl font-semibold hover:opacity-95 transition border ${
+                            isPressed ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"
+                          } ${base}`}
+                          onClick={() => pick(current.id, val)}
+                          aria-pressed={isPressed}
+                        >
+                          {label}
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+
+                {/* Botón "Más información" (negrita, sin subrayado/flecha) */}
+                <button
+                  className="mt-4 w-full text-sm font-bold hover:opacity-80"
+                  onClick={() =>
+                    setExpandedById(prev => ({ ...prev, [current.id]: !prev[current.id] }))
+                  }
+                  aria-expanded={!!expandedById[current.id]}
+                  aria-controls={`more-info-${current.id}`}
+                >
+                  Más información
+                </button>
+
+                {/* Zona expandible scrollable dentro de la tarjeta fija */}
+                {expandedById[current.id] && (
+                  <div
+                    id={`more-info-${current.id}`}
+                    className="mt-3 border border-white/15 rounded-xl p-4 bg-white/5 overflow-auto"
+                  >
+                    {current.queSeVota && (
+                      <>
+                        <h3 className="font-medium mb-2">Qué se vota</h3>
+                        <p className="text-sm opacity-90 whitespace-pre-line">{current.queSeVota}</p>
+                      </>
+                    )}
+
+                    {(current.aFavor?.length || current.enContra?.length) ? (
+                      <div className="mt-4 grid md:grid-cols-2 gap-4">
+                        {current.aFavor?.length ? (
+                          <div>
+                            <h4 className="font-semibold mb-1">Argumentos a favor</h4>
+                            <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                              {current.aFavor.map((t, idx) => <li key={idx}>{t}</li>)}
+                            </ul>
+                          </div>
+                        ) : null}
+                        {current.enContra?.length ? (
+                          <div>
+                            <h4 className="font-semibold mb-1">Argumentos en contra</h4>
+                            <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                              {current.enContra.map((t, idx) => <li key={idx}>{t}</li>)}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    {current.url && (
+                      <div className="mt-3 text-sm">
+                        <a
+                          className="underline hover:opacity-80"
+                          href={current.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Fuente oficial
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Footer fijo dentro de la tarjeta */}
+                <div className="mt-auto pt-4 flex items-center justify-between">
+                  <button
+                    onClick={back}
+                    disabled={i === 0}
+                    className={`px-4 py-2 rounded-lg transition ${
+                      i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"
+                    }`}
+                  >
+                    Volver atrás
+                  </button>
+
+                  <button onClick={showResults} className="btn-eu">
+                    Ver resultados
+                  </button>
+                </div>
+              </div>
+
+              {/* Flechas laterales (botones circulares) */}
+              <button
+                aria-label="Pregunta anterior"
+                onClick={gotoPrev}
+                disabled={i === 0}
+                className={`hidden md:flex items-center justify-center w-10 h-10 rounded-full
+                  absolute -left-5 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
+                  hover:bg-white/20 transition ${i === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                ‹
+              </button>
+              <button
+                aria-label="Pregunta siguiente"
+                onClick={gotoNext}
+                disabled={i === total - 1}
+                className={`hidden md:flex items-center justify-center w-10 h-10 rounded-full
+                  absolute -right-5 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
+                  hover:bg-white/20 transition ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                ›
+              </button>
             </div>
           </div>
         )}
