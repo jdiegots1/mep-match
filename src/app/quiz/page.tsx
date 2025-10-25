@@ -14,28 +14,30 @@ type Member = {
 
 type VoteRef = { id: string; url?: string | null };
 
-// Admite ambos esquemas: (a) el tuyo con voteId/question y (b) uno antiguo con id/q/title
+// Entrada flexible: admite (a) voteId/question y (b) id/q/title
 type QuestionInput = {
-  id?: string;                // puede ser un índice "1"
-  voteId?: string | number;   // el ID real del voto (HTV/EP)
-  q?: string;                 // posible enunciado
-  question?: string;          // enunciado (tu JSON)
-  title?: string;             // fallback
+  id?: string;
+  voteId?: string | number;
+  q?: string;
+  question?: string;
+  title?: string;
   queSeVota?: string;
   aFavor?: string | string[];
   enContra?: string | string[];
   url?: string | null;
 };
 
-// Esquema normalizado interno (id = voteId real)
+// Esquema normalizado interno
 type Question = {
-  id: string;                 // siempre el voteId real (p.ej. "176302")
-  q: string;                  // enunciado
+  id: string;     // siempre el voteId real (p.ej. "176302")
+  q: string;      // enunciado
   queSeVota?: string;
   aFavor?: string[];
   enContra?: string[];
   url?: string | null;
 };
+
+type Mode = "coverage" | "raw"; // "coverage" = más realista, "raw" = solo coincidencias
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
@@ -56,6 +58,7 @@ export default function QuizPage() {
   const [i, setI] = useState(0);
   const [done, setDone] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [mode, setMode] = useState<Mode>("coverage"); // selector de modo
 
   useEffect(() => {
     let alive = true;
@@ -78,7 +81,7 @@ export default function QuizPage() {
       // normaliza: usa voteId como id real del voto, y elige el enunciado disponible
       const normalized: Question[] = (qRaw as QuestionInput[])
         .map(x => {
-          const idReal = String(x.voteId ?? x.id ?? "").trim(); // preferimos voteId
+          const idReal = String(x.voteId ?? x.id ?? "").trim();
           const qText = (x.question ?? x.q ?? x.title ?? "").toString().trim();
           if (!idReal || !qText) return null;
 
@@ -100,7 +103,7 @@ export default function QuizPage() {
         })
         .filter(Boolean) as Question[];
 
-      // opcional: descarta preguntas cuyo id no exista en matrix (para asegurar resultados)
+      // (Opcional) filtra preguntas cuyo id no esté en matrix para asegurar resultados
       const normalizedFiltered = normalized.filter(q => !!(mat as Matrix)[q.id]);
 
       const picked = shuffle(normalizedFiltered).slice(0, 10);
@@ -167,11 +170,18 @@ export default function QuizPage() {
     return out;
   }, [choices, matrix]);
 
+  // resultados (modo seleccionable)
   const top = useMemo(() => {
     if (!done) return [];
     if (Object.keys(filteredChoices).length < 5) return [];
-    return scoreMembers(filteredChoices, matrix).slice(0, 10);
-  }, [done, filteredChoices, matrix]);
+    // NOTA: esta llamada asume que scoreMembers acepta un 3er argumento con opciones.
+    // Si tu scoreMembers no lo admite aún, dímelo y te paso el pequeño cambio en similarity.ts.
+    return scoreMembers(filteredChoices, matrix, {
+      coveragePenalty: mode === "coverage", // "más realista": tiene en cuenta ausencias
+      minOverlap: 5,
+      // abstentionSoft: true, // si quieres que empates con abstención cuenten un poco
+    }).slice(0, 10);
+  }, [done, filteredChoices, matrix, mode]);
 
   const mepById = (id: string) => members.find(m => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
@@ -210,7 +220,22 @@ export default function QuizPage() {
         {/* RESULTADOS */}
         {done ? (
           <div className="w-full max-w-3xl fade-in">
-            <h2 className="text-2xl font-bold text-center mb-4">Tus resultados</h2>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-2xl font-bold">Tus resultados</h2>
+              <div className="text-sm flex items-center gap-2">
+                <label className="opacity-80" htmlFor="mode">Cálculo:</label>
+                <select
+                  id="mode"
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as Mode)}
+                  className="bg-white/10 border border-white/20 rounded-lg px-2 py-1"
+                  aria-label="Cambiar modo de cálculo de afinidad"
+                >
+                  <option value="coverage">Más realista (tiene en cuenta ausencias)</option>
+                  <option value="raw">Solo donde ambos votasteis</option>
+                </select>
+              </div>
+            </div>
 
             {Object.keys(filteredChoices).length < 5 && (
               <p className="text-center opacity-80">

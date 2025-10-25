@@ -45,11 +45,6 @@ export default function Page() {
             Empezar
           </button>
         </div>
-
-        {/* Aviso licencia */}
-        <p className={`mt-6 text-xs text-white/60 ${mounted ? "fade-in fade-in-4" : "opacity-0"}`}>
-          Datos de votación © HowTheyVote.eu — ODbL/DBCL; fotos y resúmenes excluidos.
-        </p>
       </div>
     </main>
   );
