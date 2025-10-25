@@ -39,6 +39,7 @@ type Question = {
 
 type Mode = "coverage" | "raw";
 
+// util
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -62,6 +63,9 @@ export default function QuizPage() {
 
   // recordar desde qué pregunta se llegó a "Resultados"
   const [returnIndex, setReturnIndex] = useState(0);
+
+  // dirección para animación de carrusel ("prev" => movemos a la derecha, "next" => a la izquierda)
+  const [dir, setDir] = useState<"prev" | "next" | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -113,6 +117,7 @@ export default function QuizPage() {
       setExpandedById({});
       setI(0);
       setDone(false);
+      setDir(null);
     })();
     return () => {
       alive = false;
@@ -135,8 +140,10 @@ export default function QuizPage() {
   function pick(voteId: string, val: number) {
     setChoices(prev => ({ ...prev, [voteId]: val }));
     const nextIndex = i + 1;
-    if (nextIndex < total) setI(nextIndex);
-    else {
+    if (nextIndex < total) {
+      setDir("next");
+      setI(nextIndex);
+    } else {
       setReturnIndex(i);
       setDone(true);
     }
@@ -153,14 +160,23 @@ export default function QuizPage() {
       setI(Math.min(Math.max(returnIndex, 0), total - 1));
       return;
     }
-    if (i > 0) setI(i - 1);
+    if (i > 0) {
+      setDir("prev");
+      setI(i - 1);
+    }
   }
 
   function gotoPrev() {
-    if (i > 0) setI(i - 1);
+    if (i > 0) {
+      setDir("prev");
+      setI(i - 1);
+    }
   }
   function gotoNext() {
-    if (i < total - 1) setI(i + 1);
+    if (i < total - 1) {
+      setDir("next");
+      setI(i + 1);
+    }
   }
 
   // solo puntuamos votos que existan en matrix
@@ -198,9 +214,23 @@ export default function QuizPage() {
   const prevQ = i > 0 ? questions[i - 1] : null;
   const nextQ = i < total - 1 ? questions[i + 1] : null;
 
+  // clases de animación para el slide central
+  const slideIn =
+    dir === "next"
+      ? "translate-x-4 opacity-0"
+      : dir === "prev"
+      ? "-translate-x-4 opacity-0"
+      : "opacity-0";
+  const slideReady =
+    dir === "next"
+      ? "translate-x-0 opacity-100"
+      : dir === "prev"
+      ? "translate-x-0 opacity-100"
+      : "opacity-100";
+
   return (
     <main className="min-h-dvh flex flex-col p-6 relative">
-      {/* Barra superior */}
+      {/* Cabecera */}
       <header className="max-w-5xl w-full mx-auto mb-2 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
         <div className="text-sm font-medium">{answeredCount}/{total}</div>
@@ -216,7 +246,7 @@ export default function QuizPage() {
         </div>
       </div>
 
-      {/* “Pregunta X de Y” centrado y pegado arriba */}
+      {/* “Pregunta X de Y” centrado */}
       {!done && (
         <div className="max-w-5xl w-full mx-auto text-center mt-2 mb-1">
           <div className="text-sm opacity-80">Pregunta {i + 1} de {total}</div>
@@ -331,50 +361,61 @@ export default function QuizPage() {
       ) : (
         // CUESTIONARIO
         <section className="relative flex-1 w-full">
-          {/* Carrusel alargado del ENUNCIADO (con vecinos borrosos) */}
-          <div className="relative max-w-5xl mx-auto mt-3 mb-6 h-[120px]">
-            <div className="absolute inset-0 overflow-hidden">
-              {/* Actual */}
-              <div className="absolute inset-0 flex items-center justify-center px-6 text-center">
-                <h2 className="text-xl md:text-2xl font-semibold transition-opacity duration-300">
-                  {current.q}
-                </h2>
+          {/* ENUNCIADO tipo carrusel (con vecinos visibles) */}
+          <div className="relative max-w-5xl mx-auto mt-4 mb-8 h-[128px]">
+            <div className="absolute inset-0 flex items-center justify-center overflow-visible">
+              {/* cinta con 3 “slides” (prev/actual/next) */}
+              <div className="relative w-full h-full">
+                {/* Slide actual */}
+                <div
+                  key={current.id}
+                  className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 text-center max-w-[80%] 
+                              transition-all duration-300 will-change-transform ${slideReady}`}
+                  style={{}}
+                >
+                  <h2
+                    className={`text-xl md:text-2xl font-semibold transform transition-all duration-300
+                                ${dir ? "opacity-0 " + slideIn : "opacity-100"}
+                               `}
+                    onAnimationEnd={() => setDir(null)}
+                  >
+                    {current.q}
+                  </h2>
+                </div>
+
+                {/* vecina anterior (atenuada) */}
+                {prevQ && (
+                  <div
+                    className="absolute left-[2%] top-1/2 -translate-y-1/2 text-left max-w-[32%] opacity-35 scale-[0.96] select-none pointer-events-none"
+                    aria-hidden="true"
+                  >
+                    <div className="text-sm leading-snug line-clamp-3">{prevQ.q}</div>
+                  </div>
+                )}
+
+                {/* vecina siguiente (atenuada) */}
+                {nextQ && (
+                  <div
+                    className="absolute right-[2%] top-1/2 -translate-y-1/2 text-right max-w-[32%] opacity-35 scale-[0.96] select-none pointer-events-none"
+                    aria-hidden="true"
+                  >
+                    <div className="text-sm leading-snug line-clamp-3">{nextQ.q}</div>
+                  </div>
+                )}
               </div>
 
-              {/* Anterior borroso (si existe) */}
-              {prevQ && (
-                <div
-                  className="absolute left-0 top-0 h-full flex items-center justify-start px-6 pointer-events-none select-none"
-                  style={{ width: "50%" }}
-                  aria-hidden="true"
-                >
-                  <div className="opacity-40 blur-[2px] translate-x-[-15%] text-sm line-clamp-2 text-left">
-                    {prevQ.q}
-                  </div>
-                </div>
-              )}
-
-              {/* Siguiente borroso */}
-              {nextQ && (
-                <div
-                  className="absolute right-0 top-0 h-full flex items-center justify-end px-6 pointer-events-none select-none"
-                  style={{ width: "50%" }}
-                  aria-hidden="true"
-                >
-                  <div className="opacity-40 blur-[2px] translate-x-[15%] text-sm line-clamp-2 text-right">
-                    {nextQ.q}
-                  </div>
-                </div>
-              )}
+              {/* desvanecidos laterales para efecto “alargado” */}
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[rgba(14,17,23,1)] to-[rgba(14,17,23,0)]" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[rgba(14,17,23,1)] to-[rgba(14,17,23,0)]" />
             </div>
 
-            {/* Flechas en extremos de la pantalla */}
+            {/* Flechas en extremos de la PANTALLA */}
             <button
               aria-label="Pregunta anterior"
               onClick={gotoPrev}
               disabled={i === 0}
               className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
-                absolute -left-16 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
+                fixed left-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
                 hover:bg-white/20 transition ${i === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               ‹
@@ -384,14 +425,14 @@ export default function QuizPage() {
               onClick={gotoNext}
               disabled={i === total - 1}
               className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
-                absolute -right-16 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
+                fixed right-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
                 hover:bg-white/20 transition ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               ›
             </button>
           </div>
 
-          {/* RECUADRO FIJO (pequeño, centrado) */}
+          {/* RECUADRO FIJO (centrado, compacto) */}
           <div className="fixed left-1/2 -translate-x-1/2 bottom-32 w-[92%] max-w-md z-10">
             <div className="border border-white/20 rounded-2xl bg-white/5 backdrop-blur p-4 h-[260px] flex flex-col overflow-hidden">
               {/* Botones de voto */}
@@ -419,7 +460,7 @@ export default function QuizPage() {
                 })}
               </div>
 
-              {/* Más información (negrita, sin subrayado/flecha) */}
+              {/* Más información (negrita) */}
               <button
                 className="mt-3 w-full text-sm font-bold hover:opacity-80"
                 onClick={() =>
