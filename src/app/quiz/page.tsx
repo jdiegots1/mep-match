@@ -57,10 +57,10 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({}); // voteId -> +1|-1|0
   const [i, setI] = useState(0);
   const [done, setDone] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(false); // controla el bloque de info de la pregunta activa
   const [mode, setMode] = useState<Mode>("coverage"); // selector de modo
 
-  // NUEVO: recordar desde qué pregunta se llegó a "Resultados"
+  // recordar desde qué pregunta se llegó a "Resultados"
   const [returnIndex, setReturnIndex] = useState(0);
 
   useEffect(() => {
@@ -145,7 +145,6 @@ export default function QuizPage() {
     }
   }
 
-  // NUEVO: función centralizada para abrir resultados desde la pregunta actual
   function showResults() {
     setReturnIndex(i);
     setDone(true);
@@ -178,7 +177,6 @@ export default function QuizPage() {
   const top = useMemo(() => {
     if (!done) return [];
     if (Object.keys(filteredChoices).length < 5) return [];
-    // Requiere que scoreMembers acepte el 3er parámetro de opciones
     return scoreMembers(filteredChoices, matrix, {
       coveragePenalty: mode === "coverage", // “Más realista”
       minOverlap: 5,
@@ -382,33 +380,36 @@ export default function QuizPage() {
                 )}
               </div>
 
-              {/* Toggle “Más información” */}
+              {/* Toggle “Más información” (estilo nuevo) */}
               <button
-                className="mt-4 w-full flex items-center justify-center gap-2 text-sm underline hover:opacity-80"
+                className="mt-4 w-full flex items-center justify-center text-sm italic hover:opacity-80"
                 onClick={() => setExpanded(e => !e)}
                 aria-expanded={expanded}
                 aria-controls="more-info"
               >
-                <span
-                  className={`transition-transform ${expanded ? "rotate-180" : ""}`}
-                  aria-hidden="true"
-                >
-                  ▼
-                </span>
                 Más información
               </button>
 
-              {expanded && (
-                <div id="more-info" className="mt-4 border border-white/15 rounded-xl p-4 bg-white/5">
+              {/* Panel con teaser borroso y transición suave */}
+              <div
+                id="more-info"
+                className={`relative mt-2 border border-white/15 rounded-xl bg-white/5 overflow-hidden transition-all duration-500 ${
+                  expanded ? "p-4" : "p-4"
+                }`}
+                style={{
+                  maxHeight: expanded ? 900 : 164, // teaser ~3-4 líneas
+                }}
+              >
+                <div className={`space-y-4 ${expanded ? "blur-0" : "blur-[1px]"} transition duration-500`}>
                   {current.queSeVota && (
-                    <>
+                    <section>
                       <h3 className="font-medium mb-2">Qué se vota</h3>
                       <p className="text-sm opacity-90 whitespace-pre-line">{current.queSeVota}</p>
-                    </>
+                    </section>
                   )}
 
                   {(current.aFavor?.length || current.enContra?.length) ? (
-                    <div className="mt-4 grid md:grid-cols-2 gap-4">
+                    <div className="grid md:grid-cols-2 gap-4">
                       {current.aFavor?.length ? (
                         <div>
                           <h4 className="font-semibold mb-1">Argumentos a favor</h4>
@@ -428,11 +429,11 @@ export default function QuizPage() {
                     </div>
                   ) : null}
 
-                  {current.url && (
-                    <div className="mt-3 text-sm">
+                  {(current.url ?? votesIdx[current.id]?.url) && (
+                    <div className="text-sm">
                       <a
                         className="underline hover:opacity-80"
-                        href={current.url}
+                        href={(current.url ?? votesIdx[current.id]?.url)!}
                         target="_blank"
                         rel="noreferrer"
                       >
@@ -441,7 +442,12 @@ export default function QuizPage() {
                     </div>
                   )}
                 </div>
-              )}
+
+                {/* Degradado/fade al pie (solo visible cuando está colapsado) */}
+                {!expanded && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#0b0f1a] to-transparent"></div>
+                )}
+              </div>
 
               <div className="mt-6 flex items-center justify-between">
                 <button
