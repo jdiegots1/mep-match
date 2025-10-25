@@ -390,8 +390,8 @@ export default function QuizPage() {
                     Pregunta {index + 1} de {total}
                   </div>
                   <div className="h-full flex items-end justify-center">
-                    {/* ↓↓↓ TEXTO MÁS PEQUEÑO EN MÓVIL */}
-                    <h2 className="text-xl md:text-3xl font-semibold leading-snug text-center px-2">
+                    {/* móvil más pequeño */}
+                    <h2 className="text-lg md:text-3xl font-semibold leading-snug text-center px-2">
                       {current.q}
                     </h2>
                   </div>
@@ -494,7 +494,7 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
                 <>
-                  {/* ====== VISTA MÓVIL (md:hidden) ====== */}
+                  {/* ====== MÓVIL (md:hidden) ====== */}
                   <div className="md:hidden px-2">
                     {(() => {
                       const top3 = top.slice(0, 3);
@@ -584,7 +584,7 @@ export default function QuizPage() {
                     })()}
                   </div>
 
-                  {/* ====== VISTA DESKTOP (hidden md:block) ====== */}
+                  {/* ====== DESKTOP (hidden md:block) ====== */}
                   <div className="hidden md:block">
                     <AnimatePresence mode="wait">
                       <motion.div
@@ -724,17 +724,27 @@ export default function QuizPage() {
                               flex flex-col sm:flex-row sm:items-center sm:gap-3
                             "
                           >
-                            {/* Cabecera del ítem en móvil */}
+                            {/* Cabecera del ítem en móvil (posición + % a la derecha) */}
                             <div className="flex items-center justify-between sm:hidden mb-1">
                               <div className="inline-flex items-center gap-2">
                                 <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-md bg-white/10 text-xs font-semibold">
-                                  {r.globalPos}
+                                  {r.showPos ? r.globalPos : ""}
                                 </span>
                                 {Boolean(search.trim()) && r.countryPos ? (
                                   <span className="text-[11px] opacity-70">#{r.countryPos} país</span>
                                 ) : null}
                               </div>
                               <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
+                            </div>
+
+                            {/* DESKTOP: Columna de posición a la izquierda (con empates) */}
+                            <div className="hidden md:flex w-20 items-center justify-center">
+                              <div className="w-8 text-center font-semibold">
+                                {r.showPos ? r.globalPos : ""}
+                              </div>
+                              {Boolean(search.trim()) && r.countryPos ? (
+                                <span className="text-xs opacity-70 ml-1">#{r.countryPos} país</span>
+                              ) : null}
                             </div>
 
                             {/* Foto + texto */}
@@ -854,13 +864,19 @@ export default function QuizPage() {
                 transition={{ duration: 0.18 }}
                 className="mx-auto w-full max-w-5xl px-4 py-3"
               >
-                {/* Mobile: un solo botón simple */}
+                {/* Móvil: Volver + Ir a inicio */}
                 <div className="flex md:hidden items-center justify-center gap-3">
                   <button
                     onClick={() => setDone(false)}
                     className="px-5 py-2 rounded-lg bg-white/10 hover:bg-white/15 cursor-pointer"
                   >
-                    Volver atrás
+                    Volver
+                  </button>
+                  <button
+                    onClick={() => router.push("/")}
+                    className="px-5 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold hover:brightness-95 cursor-pointer"
+                  >
+                    Ir a inicio
                   </button>
                 </div>
 
@@ -1080,32 +1096,63 @@ function DetailDialog({
           >
             {/* Panel */}
             <div className="w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto">
+              {/* Título: móvil solo nombre; desktop completo */}
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
-                Comparativa de votos — {mepName(memberId)}{" "}
-                <span className="opacity-70">({mepGroup(memberId)})</span>
-                <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
+                <span className="md:hidden">{mepName(memberId)}</span>
+                <span className="hidden md:inline">
+                  Comparativa de votos — {mepName(memberId)}{" "}
+                  <span className="opacity-70">({mepGroup(memberId)})</span>
+                  <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
+                </span>
               </Dialog.Title>
 
-              <div className="rounded-xl border border-white/15 overflow-hidden">
-                <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
-                  <div className="px-3 py-2 font-semibold">Pregunta</div>
-                  <div className="px-3 py-2 font-semibold text-center">Tú</div>
-                  <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
+              {/* Móvil: sin cabecera/recuadro, pregunta más pequeña */}
+              <div className="md:hidden">
+                {/* Encabezado de columnas (solo Tú / Diputado) */}
+                <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] px-2 pb-2 text-xs opacity-80">
+                  <div />
+                  <div className="text-center font-semibold">Tú</div>
+                  <div className="text-center font-semibold">Diputado</div>
                 </div>
                 <div className="divide-y divide-white/10">
                   {rows.map((r) => (
-                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
-                      <div className="px-3 py-2 text-sm">{r.q}</div>
-                      <div className="px-3 py-2 flex items-center justify-center">
-                        <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_88px_88px] items-center py-2">
+                      <div className="px-2 text-xs leading-snug">{r.q}</div>
+                      <div className="px-2 flex items-center justify-center">
+                        <span className={`w-5 h-5 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
                       </div>
-                      <div className="px-3 py-2 flex items-center justify-center">
-                        <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
+                      <div className="px-2 flex items-center justify-center">
+                        <span className={`w-5 h-5 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Desktop: mantiene la tabla original */}
+              <div className="hidden md:block">
+                <div className="rounded-xl border border-white/15 overflow-hidden">
+                  <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
+                    <div className="px-3 py-2 font-semibold">Pregunta</div>
+                    <div className="px-3 py-2 font-semibold text-center">Tú</div>
+                    <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
+                  </div>
+                  <div className="divide-y divide-white/10">
+                    {rows.map((r) => (
+                      <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
+                        <div className="px-3 py-2 text-sm">{r.q}</div>
+                        <div className="px-3 py-2 flex items-center justify-center">
+                          <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+                        </div>
+                        <div className="px-3 py-2 flex items-center justify-center">
+                          <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Fin desktop */}
             </div>
           </motion.div>
         </Dialog.Content>
