@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -78,10 +78,11 @@ export default function QuizPage() {
   // ranking state
   const [search, setSearch] = useState("");
   const [detailFor, setDetailFor] = useState<string | null>(null);
-  const [showCount, setShowCount] = useState(25); // filas visibles en ranking
+  const [showCount, setShowCount] = useState(10); // filas visibles en ranking
+  const rankingRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    setShowCount(25); // reset al cambiar búsqueda
+    setShowCount(10); // reset al cambiar búsqueda
   }, [search]);
 
   const total = questions.length;
@@ -225,6 +226,10 @@ export default function QuizPage() {
   const mepCountry = (id: string) => mepById(id)?.country || "—";
   const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
 
+  const smoothScrollToRanking = () => {
+    rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (!total) {
     return (
       <main className="min-h-dvh grid place-items-center p-6">
@@ -235,7 +240,7 @@ export default function QuizPage() {
 
   return (
     <main
-      className={`min-h-dvh flex flex-col p-6 relative transition-opacity duration-500 ${
+      className={`min-h-dvh flex flex-col p-6 pb-28 relative transition-opacity duration-500 ${
         entered ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -356,17 +361,18 @@ export default function QuizPage() {
           </motion.section>
         ) : (
           <motion.section
-            key="results"
+            key={`results-${mode}`}
             className="flex-1 w-full"
             initial={{ opacity: 0, x: 24 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            <div className="w-full max-w-3xl mx-auto">
-              <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="w-full max-w-5xl mx-auto">
+              <div className="mb-4 flex items-center justify-between gap-3 px-2">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
 
+                {/* Tabs con transición suave del contenido */}
                 <div
                   role="tablist"
                   aria-label="Modo de cálculo de afinidad"
@@ -378,7 +384,7 @@ export default function QuizPage() {
                       role="tab"
                       aria-selected={mode === m}
                       onClick={() => setMode(m)}
-                      className={`px-3 py-1.5 text-sm cursor-pointer ${
+                      className={`px-3 py-1.5 text-sm cursor-pointer transition ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
                       }`}
                     >
@@ -393,78 +399,115 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
                 <>
-                  {(() => {
-                    const top3 = top.slice(0, 3);
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={mode}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.22 }}
+                      className="px-2"
+                    >
+                      {(() => {
+                        const top3 = top.slice(0, 3);
 
-                    const WinnerCard = ({ id, p }: { id: string; p: number }) => {
-                      const img = mepImage(id);
-                      return (
-                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6 mb-4">
-                          <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-1 rounded-md font-semibold">
-                            Tu mejor coincidencia
-                          </span>
-                          <div className="flex items-center gap-4 md:gap-5">
-                            {img ? (
-                              <img
-                                src={img}
-                                alt={mepName(id)}
-                                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">
-                                👤
-                              </div>
-                            )}
-                            <div className="flex-1">
-                              <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
-                              <div className="text-xs md:text-sm opacity-75">
-                                {mepGroup(id)} • {mepCountry(id)}
+                        const WinnerCard = ({ id, p }: { id: string; p: number }) => {
+                          const img = mepImage(id);
+                          return (
+                            <div className="relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-6 md:p-8 mb-5">
+                              <span className="absolute top-4 left-4 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2.5 py-1 rounded-md font-semibold">
+                                Tu mejor coincidencia
+                              </span>
+                              <div className="flex items-center gap-5 md:gap-6">
+                                {img ? (
+                                  <img
+                                    src={img}
+                                    alt={mepName(id)}
+                                    className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover ring-2 ring-white/40"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-4xl">
+                                    👤
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="text-2xl md:text-3xl font-bold leading-tight">{mepName(id)}</div>
+                                  <div className="text-sm md:text-base opacity-80">
+                                    {mepGroup(id)} • {mepCountry(id)}
+                                  </div>
+                                  <span
+                                    onClick={() => setDetailFor(id)}
+                                    className="mt-2 inline-block underline underline-offset-2 opacity-90 hover:opacity-100 cursor-pointer text-sm md:text-base"
+                                  >
+                                    Mira sus votos
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-4xl md:text-6xl font-black leading-none">{p.toFixed(2)}%</div>
+                                  <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
+                                </div>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="text-3xl md:text-5xl font-black leading-none">{p.toFixed(2)}%</div>
-                              <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
+                          );
+                        };
+
+                        const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
+                          const img = mepImage(id);
+                          return (
+                            <div className="rounded-2xl border border-white/15 bg-white/5 p-4 md:p-5 flex items-center gap-4">
+                              <div className="w-7 h-7 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
+                                {place}
+                              </div>
+                              {img ? (
+                                <img src={img} alt={mepName(id)} className="w-12 h-12 rounded-full object-cover" loading="lazy" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center">👤</div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold truncate">{mepName(id)}</div>
+                                <div className="text-xs opacity-70 truncate">{mepGroup(id)} • {mepCountry(id)}</div>
+                                <span
+                                  onClick={() => setDetailFor(id)}
+                                  className="mt-1 inline-block underline underline-offset-2 opacity-90 hover:opacity-100 cursor-pointer text-xs"
+                                >
+                                  Mira sus votos
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-extrabold leading-none">{p.toFixed(2)}%</div>
+                                <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    };
+                          );
+                        };
 
-                    const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
-                      const img = mepImage(id);
-                      return (
-                        <div className="rounded-xl border border-white/15 bg-white/5 p-3 flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
-                            {place}
-                          </div>
-                          {img ? (
-                            <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{mepName(id)}</div>
-                            <div className="text-xs opacity-70 truncate">{mepGroup(id)} • {mepCountry(id)}</div>
-                          </div>
-                          <div className="font-mono">{p.toFixed(2)}%</div>
-                        </div>
-                      );
-                    };
+                        return (
+                          <>
+                            {top3[0] && <WinnerCard id={top3[0].memberId} p={top3[0].affinity * 100} />}
+                            <div className="grid md:grid-cols-2 gap-4">
+                              {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
+                              {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
+                            </div>
 
-                    return (
-                      <>
-                        {top3[0] && <WinnerCard id={top3[0].memberId} p={top3[0].affinity * 100} />}
-                        <div className="grid sm:grid-cols-2 gap-3">
-                          {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
-                          {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
-                        </div>
-                      </>
-                    );
-                  })()}
+                            {/* CTA para ir al ranking */}
+                            <div className="text-center mt-6">
+                              <span
+                                onClick={smoothScrollToRanking}
+                                className="cursor-pointer underline underline-offset-2 opacity-90 hover:opacity-100"
+                                role="button"
+                              >
+                                Mira tus coincidencias con todos los eurodiputados
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </motion.div>
+                  </AnimatePresence>
 
                   {/* Ranking de coincidencia */}
-                  <div className="mt-10">
+                  <div ref={rankingRef} className="mt-12 px-2">
                     <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
                       value={search}
@@ -505,12 +548,13 @@ export default function QuizPage() {
                               <div className="text-xs opacity-70 truncate">{r.group} • {r.country}</div>
                             </div>
                             <div className="w-24 text-right font-mono">{r.pct.toFixed(2)}%</div>
-                            <button
+                            <span
                               onClick={() => setDetailFor(r.memberId)}
-                              className="ml-3 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 transition text-sm"
+                              className="ml-3 px-2 py-1 rounded-lg hover:bg-white/10 transition text-sm underline underline-offset-2 cursor-pointer"
+                              role="button"
                             >
                               Mira sus votos
-                            </button>
+                            </span>
                           </motion.div>
                         ))}
                       </AnimatePresence>
@@ -520,7 +564,7 @@ export default function QuizPage() {
                     {rankedAll.length > showCount && (
                       <div className="text-center mt-3">
                         <span
-                          onClick={() => setShowCount((c) => c + 25)}
+                          onClick={() => setShowCount((c) => c + 10)}
                           className="cursor-pointer underline underline-offset-2 opacity-80 hover:opacity-100"
                           role="button"
                           aria-label="Mostrar más resultados"
@@ -532,45 +576,47 @@ export default function QuizPage() {
                   </div>
                 </>
               )}
-
-              <div className="h-[140px]" />
             </div>
           </motion.section>
         )}
       </AnimatePresence>
 
-      {/* Botonera inferior fija — se oculta si el diálogo está abierto */}
+      {/* Barra inferior fija (siempre visible y sin solapar) */}
       <div
-        className={`fixed left-1/2 -translate-x-1/2 bottom-8 w-[92%] max-w-3xl flex items-center justify-between z-20 transition-opacity ${
-          infoOpen ? "opacity-0 pointer-events-none" : "opacity-100"
-        }`}
+        className={`fixed left-0 right-0 bottom-0 z-30 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10`}
       >
-        <button
-          onClick={() => {
-            if (done) {
-              setDone(false);
-              return;
-            }
-            setIndex((i) => Math.max(0, i - 1));
-          }}
-          disabled={!questions.length || (index === 0 && !done)}
-          className={`px-4 py-2 rounded-lg ${
-            !questions.length || (index === 0 && !done)
-              ? "bg-white/10 opacity-50 cursor-not-allowed"
-              : "bg-white/10 cursor-pointer"
+        <div
+          className={`mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-between transition-opacity ${
+            infoOpen ? "opacity-0 pointer-events-none" : "opacity-100"
           }`}
         >
-          Volver atrás
-        </button>
-        <button
-          onClick={() => setDone(true)}
-          className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
-            done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
-          }`}
-          disabled={done}
-        >
-          Ver resultados
-        </button>
+          <button
+            onClick={() => {
+              if (done) {
+                setDone(false);
+                return;
+              }
+              setIndex((i) => Math.max(0, i - 1));
+            }}
+            disabled={!questions.length || (index === 0 && !done)}
+            className={`px-4 py-2 rounded-lg ${
+              !questions.length || (index === 0 && !done)
+                ? "bg-white/10 opacity-50 cursor-not-allowed"
+                : "bg-white/10 hover:bg-white/15 cursor-pointer"
+            }`}
+          >
+            Volver atrás
+          </button>
+          <button
+            onClick={() => setDone(true)}
+            className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
+              done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+            }`}
+            disabled={done}
+          >
+            Ver resultados
+          </button>
+        </div>
       </div>
 
       {/* Modal detalle comparativa */}
@@ -606,77 +652,90 @@ function InfoDialog({
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
-        <Dialog.Content
-          className="fixed left-1/2 top-1/2 w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
-                     rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-                     shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
-        >
-          <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
+        <Dialog.Overlay asChild>
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+        </Dialog.Overlay>
+        <Dialog.Content asChild>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.2 }}
+            className="fixed left-1/2 top-1/2 w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
+                       rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
+                       shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
+          >
+            <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
-          {/* Descripción */}
-          {q.queSeVota ? (
-            <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
-          ) : (
-            <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
-          )}
+            {/* Descripción */}
+            {q.queSeVota ? (
+              <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
+            ) : (
+              <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
+            )}
 
-          {/* Enlace centrado antes de argumentos */}
-          {q.url && (
-            <div className="mt-4 mb-2 text-sm text-center">
-              <a
-                className="inline-block underline hover:opacity-80 cursor-pointer"
-                href={q.url!}
-                target="_blank"
-                rel="noreferrer"
+            {/* Enlace centrado antes de argumentos */}
+            {q.url && (
+              <div className="mt-4 mb-2 text-sm text-center">
+                <a
+                  className="inline-block underline hover:opacity-80 cursor-pointer"
+                  href={q.url!}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ampliar información
+                </a>
+              </div>
+            )}
+
+            {(q.aFavor?.length || q.enContra?.length) ? (
+              <div className="mt-5 grid md:grid-cols-2 gap-6">
+                {q.aFavor?.length ? (
+                  <div>
+                    <div className="w-full flex justify-center mb-3">
+                      <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-700 text-white">
+                        Argumentos a favor
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm opacity-90 text-justify">
+                      {q.aFavor.map((t, i) => (
+                        <p key={i}>{t}</p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {q.enContra?.length ? (
+                  <div>
+                    <div className="w-full flex justify-center mb-3">
+                      <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-700 text-white">
+                        Argumentos en contra
+                      </span>
+                    </div>
+                    <div className="space-y-2 text-sm opacity-90 text-justify">
+                      {q.enContra.map((t, i) => (
+                        <p key={i}>{t}</p>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <Dialog.Close asChild>
+              <button
+                className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
+                aria-label="Cerrar"
               >
-                Ampliar información
-              </a>
-            </div>
-          )}
-
-          {(q.aFavor?.length || q.enContra?.length) ? (
-            <div className="mt-5 grid md:grid-cols-2 gap-6">
-              {q.aFavor?.length ? (
-                <div>
-                  <div className="w-full flex justify-center mb-3">
-                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-700 text-white">
-                      Argumentos a favor
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm opacity-90 text-justify">
-                    {q.aFavor.map((t, i) => (
-                      <p key={i}>{t}</p>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {q.enContra?.length ? (
-                <div>
-                  <div className="w-full flex justify-center mb-3">
-                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-700 text-white">
-                      Argumentos en contra
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-sm opacity-90 text-justify">
-                    {q.enContra.map((t, i) => (
-                      <p key={i}>{t}</p>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          <Dialog.Close asChild>
-            <button
-              className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
-              aria-label="Cerrar"
-            >
-              Cerrar
-            </button>
-          </Dialog.Close>
+                Cerrar
+              </button>
+            </Dialog.Close>
+          </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
@@ -717,45 +776,59 @@ function DetailDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
-        <Dialog.Content
-          className="fixed left-1/2 top-1/2 w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
-                     rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
-                     shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
-        >
-          <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
-            Comparativa de votos — {mepName(memberId)} <span className="opacity-70">({mepGroup(memberId)} • {mepCountry(memberId)})</span>
-          </Dialog.Title>
+        <Dialog.Overlay asChild>
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+        </Dialog.Overlay>
+        <Dialog.Content asChild>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.2 }}
+            className="fixed left-1/2 top-1/2 w-[min(92vw,980px)] -translate-x-1/2 -translate-y-1/2
+                       rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
+                       shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto"
+          >
+            <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
+              Comparativa de votos — {mepName(memberId)}{" "}
+              <span className="opacity-70">({mepGroup(memberId)} • {mepCountry(memberId)})</span>
+            </Dialog.Title>
 
-          <div className="rounded-xl border border-white/15 overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
-              <div className="px-3 py-2 font-semibold">Pregunta</div>
-              <div className="px-3 py-2 font-semibold text-center">Tú</div>
-              <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
-            </div>
-            <div className="divide-y divide-white/10">
-              {rows.map((r) => (
-                <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
-                  <div className="px-3 py-2 text-sm">{r.q}</div>
-                  <div className="px-3 py-2 flex items-center justify-center">
-                    <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+            <div className="rounded-xl border border-white/15 overflow-hidden">
+              <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
+                <div className="px-3 py-2 font-semibold">Pregunta</div>
+                <div className="px-3 py-2 font-semibold text-center">Tú</div>
+                <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
+              </div>
+              <div className="divide-y divide-white/10">
+                {rows.map((r) => (
+                  <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
+                    <div className="px-3 py-2 text-sm">{r.q}</div>
+                    <div className="px-3 py-2 flex items-center justify-center">
+                      <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
+                    </div>
+                    <div className="px-3 py-2 flex items-center justify-center">
+                      <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
+                    </div>
                   </div>
-                  <div className="px-3 py-2 flex items-center justify-center">
-                    <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          <Dialog.Close asChild>
-            <button
-              className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
-              aria-label="Cerrar"
-            >
-              Cerrar
-            </button>
-          </Dialog.Close>
+            <Dialog.Close asChild>
+              <button
+                className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
+                aria-label="Cerrar"
+              >
+                Cerrar
+              </button>
+            </Dialog.Close>
+          </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

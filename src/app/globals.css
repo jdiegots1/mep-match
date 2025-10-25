@@ -100,3 +100,20 @@ html, body{ height:100%; }
 
 /* Evitar scrollbar horizontal del body cuando el carrusel es full-bleed */
 body{ overflow-x:hidden; }
+
+/* WebKit */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.25);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.35);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+/* Firefox */
+* { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent; }
