@@ -142,3 +142,149 @@ body{ overflow-x:hidden; }
 }
 /* Firefox */
 * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent; }
+
+/* ========== Mobile-only overrides (no TSX changes needed) ========== */
+@media (max-width: 640px) {
+
+  /* ——— Tipografía/espaciado global ——— */
+  html, body{
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body{
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  /* Reduce padding general del <main> y deja espacio por la barra inferior */
+  main{
+    padding: 12px 12px calc(84px + env(safe-area-inset-bottom)) !important;
+  }
+
+  /* Títulos grandes → más compactos en móvil */
+  main h2{
+    font-size: clamp(1.2rem, 5.2vw, 1.5rem) !important;
+    line-height: 1.25 !important;
+  }
+  main h3{
+    font-size: clamp(1.05rem, 4.6vw, 1.25rem) !important;
+  }
+
+  /* ——— Barra inferior fija ——— */
+  /* Asegura altura estable y safe-area padding */
+  .fixed.left-0.right-0.bottom-0{
+    padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
+  }
+  .fixed.left-0.right-0.bottom-0 .px-4,
+  .fixed.left-0.right-0.bottom-0 .px-5{
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .fixed.left-0.right-0.bottom-0 button{
+    min-height: 44px; /* WCAG tap target */
+  }
+
+  /* ——— Diálogos (Radix) a pantalla completa ———
+     NOTA: apuntamos a las clases de Tailwind que ya usas en los Content. */
+  /* Más información: w-[min(92vw,820px)] → fullscreen en móvil */
+  .w-\[min\(92vw\,820px\)\]{
+    width: 100vw !important;
+    height: 100dvh !important;
+    inset: 0 !important;
+    left: 0 !important; top: 0 !important;
+    transform: none !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    padding: 16px !important;
+  }
+  /* Comparativa: w-[min(92vw,980px)] → fullscreen en móvil */
+  .w-\[min\(92vw\,980px\)\]{
+    width: 100vw !important;
+    height: 100dvh !important;
+    inset: 0 !important;
+    left: 0 !important; top: 0 !important;
+    transform: none !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    padding: 16px !important;
+  }
+
+  /* Título del diálogo un poco más pequeño */
+  .w-\[min\(92vw\,820px\)\] .text-lg,
+  .w-\[min\(92vw\,980px\)\] .text-lg{
+    font-size: 1.05rem !important;
+  }
+
+  /* ——— Botones/pills “fantasma” ——— */
+  .inline-flex.rounded-lg{
+    min-height: 36px;
+  }
+
+  /* ——— Tarjetas top-3 ——— */
+  .rounded-3xl.border.p-6,
+  .rounded-3xl.border.p-8{
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+  /* Avatares dentro de tarjetas: algo más pequeños */
+  .rounded-full.object-cover{
+    width: 56px !important;
+    height: 56px !important;
+  }
+  /* Chip de posición (2º/3º): */
+  .w-7.h-7.rounded-full{
+    width: 28px !important;
+    height: 28px !important;
+    font-size: 11px !important;
+  }
+
+  /* ——— CTA “Mira tus coincidencias…” ——— */
+  .text-center.mt-10 > span,
+  .text-center.mt-8 > span,
+  .text-center.mt-6 > span{
+    margin-top: 8px;
+    padding: 10px 12px !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* ——— Ranking ——— */
+  /* Fila un poco más alta y con más espacio táctil */
+  .border-b.border-white\/10.py-2{
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
+  }
+  /* Columna de posiciones más estrecha en móvil */
+  .w-24.flex.items-center.justify-start.gap-2{
+    width: 72px !important;
+    gap: 6px !important;
+  }
+  /* Avatar de lista algo mayor para legibilidad */
+  .w-9.h-9.rounded-full{
+    width: 40px !important;
+    height: 40px !important;
+  }
+  /* % a la derecha: tipografía algo menor y ancho flexible */
+  .w-24.text-right.font-mono{
+    width: 72px !important;
+    font-size: 12px !important;
+  }
+
+  /* Input de búsqueda: alto cómodo */
+  input.w-full.rounded-xl{
+    min-height: 42px !important;
+    font-size: 0.95rem !important;
+  }
+
+  /* ——— Progreso superior ——— */
+  /* Barra un pelín más alta en móvil */
+  .h-2.rounded-full{
+    height: 9px !important;
+  }
+
+  /* ——— Botón “Cerrar” en barra inferior cuando hay overlay ——— */
+  /* (por si el SO reduce el área táctil) */
+  .fixed.left-0.right-0.bottom-0 button:only-child{
+    min-width: 48%;
+    font-weight: 700;
+  }
+}
