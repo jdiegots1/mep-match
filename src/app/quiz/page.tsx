@@ -58,22 +58,24 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<Mode>("coverage");
 
-  // ---- Embla + viewport ref para medir ancho
+  // ---- Embla + refs
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
-    align: "center",            // ⬅️ centrado real en TODAS las slides
+    align: "center", // centrado lógico
     containScroll: "trimSnaps",
     inViewThreshold: 0.6,
     skipSnaps: false,
     startIndex: 0,
   });
 
-  // “bridge” ref: asigna al mismo tiempo emblaRef y viewportRef
+  // “bridge” para guardar el viewport en un ref y pasarlo a Embla
   const setViewport = useCallback(
     (el: HTMLDivElement | null) => {
       viewportRef.current = el;
-      emblaRef(el);
+      emblaRef(el as any);
     },
     [emblaRef]
   );
@@ -81,17 +83,28 @@ export default function QuizPage() {
   const [index, setIndex] = useState(0);
   const total = questions.length;
 
-  // ---- padding dinámico en track para centrar 1ª/última
+  // ---- padding dinámico en track (compensando gap/2)
   const [sidePad, setSidePad] = useState(0);
-  const SLIDE_VW = 0.86;      // coincide con w-[86vw]
-  const SLIDE_MAX_PX = 768;   // 48rem = max-w-3xl
+  const SLIDE_VW = 0.86;    // w-[86vw]
+  const SLIDE_MAX_PX = 768; // max-w-3xl
 
   const recalcSidePad = useCallback(() => {
     const vp = viewportRef.current;
-    if (!vp) return;
+    const track = trackRef.current;
+    if (!vp || !track) return;
+
+    // gap real en px (columnGap = rowGap = gap en nuestro flex)
+    const cs = getComputedStyle(track);
+    const gapPx =
+      parseFloat(cs.columnGap || "0") ||
+      parseFloat(cs.gap || "0") ||
+      0;
+
     const vpW = vp.clientWidth || window.innerWidth;
     const slideW = Math.min(vpW * SLIDE_VW, SLIDE_MAX_PX);
-    const pad = Math.max((vpW - slideW) / 2, 0);
+
+    // padding ideal menos la mitad del gap para evitar el corrimiento visual
+    const pad = Math.max((vpW - slideW) / 2 - gapPx / 2, 0);
     setSidePad(pad);
   }, []);
 
@@ -239,8 +252,7 @@ export default function QuizPage() {
   const mepById = (id: string) => members.find((m) => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
   const mepGroup = (id: string) => mepById(id)?.group || "—";
-  const mepImage = (id: string) =>
-    mepById(id)?.image ?? mepById(id)?.photo ?? null;
+  const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
 
   if (!total) {
     return (
@@ -325,8 +337,9 @@ export default function QuizPage() {
               }}
               ref={setViewport}
             >
-              {/* Track con gap y padding lateral dinámico */}
+              {/* Track con gap y padding lateral dinámico (compensado) */}
               <div
+                ref={trackRef}
                 className="flex items-stretch gap-10 md:gap-16 py-4"
                 style={{ paddingLeft: sidePad, paddingRight: sidePad }}
               >
