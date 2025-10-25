@@ -391,8 +391,8 @@ export default function QuizPage() {
                   </div>
                   <div className="h-full flex items-end justify-center">
                     {/* móvil más pequeño */}
-                    <h2 className="text-lg md:text-3xl font-semibold leading-snug text-center px-2">
-                      {current.q}
+                    <h2 className="text-base sm:text-lg md:text-3xl font-semibold leading-snug text-center px-2">
+                        {current.q}
                     </h2>
                   </div>
                 </div>
