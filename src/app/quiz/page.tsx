@@ -194,18 +194,22 @@ export default function QuizPage() {
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.25 }}
           >
-            {/* Bloque TITULAR independiente y más ancho */}
+            {/* TITULAR con altura reservada para que la tarjeta de respuestas no se mueva */}
             <div className="max-w-5xl mx-auto text-center">
               <div className="text-sm opacity-80 mb-2">
                 Pregunta {index + 1} de {total}
               </div>
-              <h2 className="text-2xl md:text-3xl font-semibold leading-snug mb-8">
-                {current.q}
-              </h2>
+
+              {/* Altura fija (responsive) + alineado abajo para textos cortos */}
+              <div className="min-h-[120px] md:min-h-[150px] lg:min-h-[170px] flex items-end justify-center">
+                <h2 className="text-2xl md:text-3xl font-semibold leading-snug">
+                  {current.q}
+                </h2>
+              </div>
             </div>
 
-            {/* Bloque RESPUESTAS independiente, ancho fijo (no cambia) */}
-            <div className="max-w-3xl mx-auto">
+            {/* RESPUESTAS — bloque independiente, separado de forma constante */}
+            <div className="max-w-3xl mx-auto mt-10">
               <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {([
@@ -257,6 +261,7 @@ export default function QuizPage() {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
 
+                {/* Tabs con transición del contenido */}
                 <div
                   role="tablist"
                   aria-label="Modo de cálculo de afinidad"
@@ -269,7 +274,7 @@ export default function QuizPage() {
                       aria-selected={mode === m}
                       onClick={() => setMode(m)}
                       className={`px-3 py-1.5 text-sm cursor-pointer ${
-                        mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : ""
+                        mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
                       }`}
                     >
                       {m === "coverage" ? "Más realista" : "Solo coincidencias"}
@@ -282,74 +287,86 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               )}
 
-              {top.length > 0 && (() => {
-                const top3 = top.slice(0, 3);
-                const pct = (x: number) => Number((x * 100).toFixed(2));
+              {/* Contenido con slide al cambiar de modo */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={mode}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.2 }}
+                  className="transition-opacity duration-200"
+                >
+                  {(() => {
+                    const top3 = top.slice(0, 3);
+                    const pct = (x: number) => Number((x * 100).toFixed(2));
 
-                const WinnerCard = ({ id, p }: { id: string; p: number }) => {
-                  const img = mepImage(id);
-                  return (
-                    <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6">
-                      <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-1 rounded-md font-semibold">
-                        Tu mejor coincidencia
-                      </span>
-                      <div className="flex items-center gap-4 md:gap-5">
-                        {img ? (
-                          <img
-                            src={img}
-                            alt={mepName(id)}
-                            className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">
-                            👤
+                    const WinnerCard = ({ id, p }: { id: string; p: number }) => {
+                      const img = mepImage(id);
+                      return (
+                        <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6">
+                          <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-1 rounded-md font-semibold">
+                            Tu mejor coincidencia
+                          </span>
+                          <div className="flex items-center gap-4 md:gap-5">
+                            {img ? (
+                              <img
+                                src={img}
+                                alt={mepName(id)}
+                                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">
+                                👤
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
+                              <div className="text-xs md:text-sm opacity-75">{mepGroup(id)}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-3xl md:text-5xl font-black leading-none">{p.toFixed(2)}%</div>
+                              <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
+                            </div>
                           </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
-                          <div className="text-xs md:text-sm opacity-75">{mepGroup(id)}</div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-3xl md:text-5xl font-black leading-none">{p.toFixed(2)}%</div>
-                          <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
+                      );
+                    };
+
+                    const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
+                      const img = mepImage(id);
+                      return (
+                        <div className="rounded-xl border border-white/15 bg-white/5 p-3 flex items-center gap-3">
+                          <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
+                            {place}
+                          </div>
+                          {img ? (
+                            <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{mepName(id)}</div>
+                            <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
+                          </div>
+                          <div className="font-mono">{p.toFixed(2)}%</div>
+                        </div>
+                      );
+                    };
+
+                    return top.length > 0 ? (
+                      <div className="space-y-4">
+                        <WinnerCard id={top3[0].memberId} p={pct(top3[0].affinity)} />
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={pct(top3[1].affinity)} />}
+                          {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={pct(top3[2].affinity)} />}
                         </div>
                       </div>
-                    </div>
-                  );
-                };
-
-                const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
-                  const img = mepImage(id);
-                  return (
-                    <div className="rounded-xl border border-white/15 bg-white/5 p-3 flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
-                        {place}
-                      </div>
-                      {img ? (
-                        <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{mepName(id)}</div>
-                        <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
-                      </div>
-                      <div className="font-mono">{p.toFixed(2)}%</div>
-                    </div>
-                  );
-                };
-
-                return (
-                  <div className="space-y-4">
-                    <WinnerCard id={top3[0].memberId} p={pct(top3[0].affinity)} />
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={pct(top3[1].affinity)} />}
-                      {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={pct(top3[2].affinity)} />}
-                    </div>
-                  </div>
-                );
-              })()}
+                    ) : null;
+                  })()}
+                </motion.div>
+              </AnimatePresence>
 
               <div className="h-[140px]" />
             </div>
@@ -360,15 +377,28 @@ export default function QuizPage() {
       {/* Botonera inferior fija — SIEMPRE visible */}
       <div className="fixed left-1/2 -translate-x-1/2 bottom-8 w-[92%] max-w-3xl flex items-center justify-between z-20">
         <button
-          onClick={() => setIndex((i) => Math.max(0, i - 1))}
-          disabled={!questions.length || index === 0 || done}
-          className={`px-4 py-2 rounded-lg ${index === 0 || done ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 cursor-pointer"}`}
+          onClick={() => {
+            if (done) {
+              setDone(false); // volver del resultado al cuestionario
+              return;
+            }
+            setIndex((i) => Math.max(0, i - 1));
+          }}
+          disabled={!questions.length || (index === 0 && !done)}
+          className={`px-4 py-2 rounded-lg ${
+            !questions.length || (index === 0 && !done)
+              ? "bg-white/10 opacity-50 cursor-not-allowed"
+              : "bg-white/10 cursor-pointer"
+          }`}
         >
           Volver atrás
         </button>
         <button
           onClick={() => setDone(true)}
-          className="px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold cursor-pointer"
+          className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
+            done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+          }`}
+          disabled={done}
         >
           Ver resultados
         </button>
