@@ -94,5 +94,9 @@ html, body{ height:100%; }
   transition-timing-function: ease !important;
 }
 
+.swiper-slide { transition: transform .32s ease, opacity .32s ease, filter .32s ease; opacity:.28; filter: blur(1.5px); }
+.swiper-slide.swiper-slide-active { opacity:1; filter:none; transform:none; }
+
+
 /* Evitar scrollbar horizontal del body cuando el carrusel es full-bleed */
 body{ overflow-x:hidden; }
