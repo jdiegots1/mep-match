@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -59,6 +59,7 @@ export default function QuizPage() {
   const [index, setIndex] = useState(0);
   const [entered, setEntered] = useState(false);
   const [done, setDone] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false); // ⬅️ estado del Dialog
 
   const total = questions.length;
   const current = questions[index];
@@ -218,7 +219,6 @@ export default function QuizPage() {
 
               {/* Fila 2: RESPUESTAS — siempre a la misma altura */}
               <div className="row-start-2 row-end-3 col-span-1">
-                {/* separador vertical extra sin tocar el título */}
                 <div className="max-w-3xl mx-auto mt-14 md:mt-16">
                   <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -246,7 +246,7 @@ export default function QuizPage() {
                     </div>
 
                     <div className="mt-5 flex items-center justify-between gap-3">
-                      <InfoDialog q={current} />
+                      <InfoDialog q={current} onOpenChange={setInfoOpen} />
                       <div className="text-xs md:text-sm opacity-70">
                         {choices[current.id] !== undefined
                           ? "Podés modificar tu respuesta"
@@ -273,7 +273,6 @@ export default function QuizPage() {
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
 
-                {/* Tabs con transición del contenido */}
                 <div
                   role="tablist"
                   aria-label="Modo de cálculo de afinidad"
@@ -299,7 +298,6 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               )}
 
-              {/* Contenido con slide al cambiar de modo */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={mode}
@@ -385,12 +383,16 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Botonera inferior fija — SIEMPRE visible */}
-      <div className="fixed left-1/2 -translate-x-1/2 bottom-8 w-[92%] max-w-3xl flex items-center justify-between z-20">
+      {/* Botonera inferior fija — se oculta si el diálogo está abierto */}
+      <div
+        className={`fixed left-1/2 -translate-x-1/2 bottom-8 w-[92%] max-w-3xl flex items-center justify-between z-20 transition-opacity ${
+          infoOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
+      >
         <button
           onClick={() => {
             if (done) {
-              setDone(false); // volver del resultado al cuestionario
+              setDone(false);
               return;
             }
             setIndex((i) => Math.max(0, i - 1));
@@ -420,9 +422,15 @@ export default function QuizPage() {
 
 /* ====================== Componentes auxiliares ====================== */
 
-function InfoDialog({ q }: { q: Question }) {
+function InfoDialog({
+  q,
+  onOpenChange,
+}: {
+  q: Question;
+  onOpenChange?: (open: boolean) => void;
+}) {
   return (
-    <Dialog.Root>
+    <Dialog.Root onOpenChange={onOpenChange}>
       <Dialog.Trigger asChild>
         <button className="px-4 py-2 rounded-xl text-sm font-bold bg-white/80 text-black cursor-pointer">
           Más información
@@ -431,33 +439,46 @@ function InfoDialog({ q }: { q: Question }) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 w-[min(92vw,680px)] -translate-x-1/2 -translate-y-1/2
-                     rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-6
-                     shadow-[0_10px_40px_rgba(0,0,0,0.35)]"
+          className="fixed left-1/2 top-1/2 w-[min(92vw,820px)] -translate-x-1/2 -translate-y-1/2
+                     rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-6 md:p-7
+                     shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[80vh] overflow-y-auto"
         >
-          <Dialog.Title className="text-lg md:text-xl font-semibold mb-2">Qué se vota</Dialog.Title>
+          <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
+
+          {/* Descripción justificada */}
           {q.queSeVota ? (
-            <p className="text-sm opacity-90 whitespace-pre-line">{q.queSeVota}</p>
+            <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
           ) : (
-            <p className="text-sm opacity-70">No hay descripción disponible.</p>
+            <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
           )}
 
           {(q.aFavor?.length || q.enContra?.length) ? (
-            <div className="mt-4 grid md:grid-cols-2 gap-4">
+            <div className="mt-5 grid md:grid-cols-2 gap-6">
+              {/* A favor */}
               {q.aFavor?.length ? (
                 <div>
-                  <h4 className="font-semibold mb-1">Argumentos a favor</h4>
-                  <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                  <div className="w-full flex justify-center mb-3">
+                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-200/90 text-green-900">
+                      Argumentos a favor
+                    </span>
+                  </div>
+                  <ul className="list-disc pl-5 text-sm opacity-90 space-y-2 text-justify">
                     {q.aFavor.map((t, i) => (
                       <li key={i}>{t}</li>
                     ))}
                   </ul>
                 </div>
               ) : null}
+
+              {/* En contra */}
               {q.enContra?.length ? (
                 <div>
-                  <h4 className="font-semibold mb-1">Argumentos en contra</h4>
-                  <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                  <div className="w-full flex justify-center mb-3">
+                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-200/90 text-red-900">
+                      Argumentos en contra
+                    </span>
+                  </div>
+                  <ul className="list-disc pl-5 text-sm opacity-90 space-y-2 text-justify">
                     {q.enContra.map((t, i) => (
                       <li key={i}>{t}</li>
                     ))}
@@ -468,7 +489,7 @@ function InfoDialog({ q }: { q: Question }) {
           ) : null}
 
           {q.url && (
-            <div className="mt-4 text-sm">
+            <div className="mt-5 text-sm">
               <a className="underline hover:opacity-80 cursor-pointer" href={q.url!} target="_blank" rel="noreferrer">
                 Fuente oficial
               </a>
@@ -477,7 +498,7 @@ function InfoDialog({ q }: { q: Question }) {
 
           <Dialog.Close asChild>
             <button
-              className="mt-5 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
+              className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
               aria-label="Cerrar"
             >
               Cerrar
