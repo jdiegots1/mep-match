@@ -14,7 +14,6 @@ type Member = {
 
 type VoteRef = { id: string; url?: string | null };
 
-// Entrada flexible
 type QuestionInput = {
   id?: string;
   voteId?: string | number;
@@ -27,7 +26,6 @@ type QuestionInput = {
   url?: string | null;
 };
 
-// Esquema normalizado
 type Question = {
   id: string;
   q: string;
@@ -61,7 +59,6 @@ export default function QuizPage() {
   const [mode, setMode] = useState<Mode>("coverage");
   const [returnIndex, setReturnIndex] = useState(0);
 
-  // refs para carrusel
   const viewportRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<HTMLDivElement[]>([]);
 
@@ -137,27 +134,17 @@ export default function QuizPage() {
     setChoices(prev => ({ ...prev, [voteId]: val }));
     const nextIndex = i + 1;
     if (nextIndex < total) setI(nextIndex);
-    else {
-      setReturnIndex(i);
-      setDone(true);
-    }
+    else { setReturnIndex(i); setDone(true); }
   }
 
-  function showResults() {
-    setReturnIndex(i);
-    setDone(true);
-  }
+  function showResults() { setReturnIndex(i); setDone(true); }
 
   function back() {
-    if (done && total > 0) {
-      setDone(false);
-      setI(Math.min(Math.max(returnIndex, 0), total - 1));
-      return;
-    }
+    if (done && total > 0) { setDone(false); setI(Math.min(Math.max(returnIndex, 0), total - 1)); return; }
     if (i > 0) setI(i - 1);
   }
 
-  // --- Carrusel: desplaza suavemente al slide i
+  // Scroll al slide activo
   useEffect(() => {
     const vp = viewportRef.current;
     const slide = slideRefs.current[i];
@@ -165,7 +152,7 @@ export default function QuizPage() {
     vp.scrollTo({ left: slide.offsetLeft - (vp.clientWidth - slide.clientWidth) / 2, behavior: "smooth" });
   }, [i, total]);
 
-  // Si el usuario hace scroll manual, detecta el slide más cercano al parar
+  // Snap al slide más cercano tras scroll manual
   useEffect(() => {
     const vp = viewportRef.current;
     if (!vp) return;
@@ -175,8 +162,7 @@ export default function QuizPage() {
       t = setTimeout(() => {
         const slides = slideRefs.current;
         if (!slides.length) return;
-        let best = 0;
-        let bestDist = Infinity;
+        let best = 0, bestDist = Infinity;
         const center = vp.scrollLeft + vp.clientWidth / 2;
         slides.forEach((el, idx) => {
           const elCenter = el.offsetLeft + el.clientWidth / 2;
@@ -193,7 +179,6 @@ export default function QuizPage() {
   function gotoPrev() { if (i > 0) setI(i - 1); }
   function gotoNext() { if (i < total - 1) setI(i + 1); }
 
-  // solo puntuamos votos que existan en matrix
   const filteredChoices = useMemo(() => {
     const out: Record<string, number> = {};
     for (const [voteId, val] of Object.entries(choices)) {
@@ -226,6 +211,12 @@ export default function QuizPage() {
 
   return (
     <main className="min-h-dvh flex flex-col p-6 relative">
+      {/* Oculta scrollbars del viewport del carrusel */}
+      <style jsx global>{`
+        #quiz-viewport { -ms-overflow-style: none; scrollbar-width: none; }
+        #quiz-viewport::-webkit-scrollbar { display: none; }
+      `}</style>
+
       {/* Cabecera */}
       <header className="max-w-5xl w-full mx-auto mb-2 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
@@ -235,69 +226,40 @@ export default function QuizPage() {
       {/* Progreso */}
       <div className="max-w-5xl w-full mx-auto mb-2">
         <div className="h-2 rounded-full bg-white/20 overflow-hidden">
-          <div
-            className="h-full bg-[#ffcc00] transition-[width] duration-300"
-            style={{ width: `${progressPct}%` }}
-          />
+          <div className="h-full bg-[#ffcc00] transition-[width] duration-300" style={{ width: `${progressPct}%` }} />
         </div>
       </div>
 
       {!done && (
-        <div className="max-w-5xl w-full mx-auto text-center mt-2 mb-3">
+        <div className="max-w-5xl w-full mx-auto text-center mt-2 mb-4">
           <div className="text-sm opacity-80">Pregunta {i + 1} de {total}</div>
         </div>
       )}
 
-      {/* RESULTADOS */}
       {done ? (
+        /* RESULTADOS (igual que antes) */
         <section className="flex-1 grid place-items-center w-full">
           <div className="w-full max-w-3xl fade-in">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-2xl font-bold">Tus resultados</h2>
-              <div
-                role="tablist"
-                aria-label="Modo de cálculo de afinidad"
-                className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/5"
-              >
-                <button
-                  role="tab"
-                  aria-selected={mode === "coverage"}
-                  className={`px-3 py-1.5 text-sm transition ${mode === "coverage" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"}`}
-                  onClick={() => setMode("coverage")}
-                >
-                  Más realista
-                </button>
-                <button
-                  role="tab"
-                  aria-selected={mode === "raw"}
-                  className={`px-3 py-1.5 text-sm transition ${mode === "raw" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"}`}
-                  onClick={() => setMode("raw")}
-                >
-                  Solo coincidencias
-                </button>
+              <div role="tablist" aria-label="Modo de cálculo de afinidad" className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/5">
+                <button role="tab" aria-selected={mode === "coverage"} className={`px-3 py-1.5 text-sm transition ${mode === "coverage" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"}`} onClick={() => setMode("coverage")}>Más realista</button>
+                <button role="tab" aria-selected={mode === "raw"} className={`px-3 py-1.5 text-sm transition ${mode === "raw" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"}`} onClick={() => setMode("raw")}>Solo coincidencias</button>
               </div>
             </div>
 
-            {Object.keys(filteredChoices).length < 5 && (
-              <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
-            )}
+            {Object.keys(filteredChoices).length < 5 && (<p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>)}
 
-            {top.length > 0 && (() => {
+            {(() => {
               const top3 = top.slice(0, 3);
-
               const WinnerCard = ({ id, pct }: { id: string; pct: number }) => {
                 const img = mepImage(id);
                 return (
                   <div className="relative overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-br from-[#003399]/40 to-[#001a66]/40 p-5 md:p-6">
-                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[#ffcc00] text-black px-2 py-1 rounded-md font-semibold">
-                      Tu mejor coincidencia
-                    </span>
+                    <span className="absolute top-3 left-3 text-[10px] uppercase tracking-wider bg-[#ffcc00] text-black px-2 py-1 rounded-md font-semibold">Tu mejor coincidencia</span>
                     <div className="flex items-center gap-4 md:gap-5">
-                      {img ? (
-                        <img src={img} alt={mepName(id)} className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40" loading="lazy" />
-                      ) : (
-                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">👤</div>
-                      )}
+                      {img ? (<img src={img} alt={mepName(id)} className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover ring-2 ring-white/40" loading="lazy" />)
+                           : (<div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10 grid place-items-center text-3xl">👤</div>)}
                       <div className="flex-1">
                         <div className="text-xl md:text-2xl font-bold leading-tight">{mepName(id)}</div>
                         <div className="text-xs md:text-sm opacity-75">{mepGroup(id)}</div>
@@ -310,17 +272,13 @@ export default function QuizPage() {
                   </div>
                 );
               };
-
               const SmallCard = ({ id, pct, place }: { id: string; pct: number; place: number }) => {
                 const img = mepImage(id);
                 return (
                   <div className="rounded-xl border border-white/15 bg-white/5 p-3 flex items-center gap-3">
                     <div className="w-6 h-6 rounded-full bg-[#ffcc00] text-black font-bold grid place-items-center text-xs">{place}</div>
-                    {img ? (
-                      <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>
-                    )}
+                    {img ? (<img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover" loading="lazy" />)
+                         : (<div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center">👤</div>)}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{mepName(id)}</div>
                       <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
@@ -329,7 +287,6 @@ export default function QuizPage() {
                   </div>
                 );
               };
-
               return (
                 <div className="space-y-4">
                   <WinnerCard id={top3[0].memberId} pct={Math.round(top3[0].affinity * 100)} />
@@ -348,148 +305,146 @@ export default function QuizPage() {
           </div>
         </section>
       ) : (
-        // CUESTIONARIO — carrusel real dentro de un único recuadro
+        /* CUESTIONARIO — carrusel full-bleed */
         <section className="relative flex-1 w-full">
-          <div className="relative max-w-5xl mx-auto">
-            {/* Flechas en extremos de la pantalla */}
-            <button
-              aria-label="Pregunta anterior"
-              onClick={gotoPrev}
-              disabled={i === 0}
-              className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
-                fixed left-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
-                hover:bg-white/20 transition z-20 ${i === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
-            >
-              ‹
-            </button>
-            <button
-              aria-label="Pregunta siguiente"
-              onClick={gotoNext}
-              disabled={i === total - 1}
-              className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
-                fixed right-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
-                hover:bg-white/20 transition z-20 ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
-            >
-              ›
-            </button>
+          {/* Flechas en extremos de la pantalla */}
+          <button
+            aria-label="Pregunta anterior"
+            onClick={gotoPrev}
+            disabled={i === 0}
+            className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
+              fixed left-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
+              hover:bg-white/20 transition z-20 ${i === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+          >‹</button>
+          <button
+            aria-label="Pregunta siguiente"
+            onClick={gotoNext}
+            disabled={i === total - 1}
+            className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
+              fixed right-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
+              hover:bg-white/20 transition z-20 ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
+          >›</button>
 
-            {/* Viewport con scroll-snap */}
-            <div
-              ref={viewportRef}
-              className="overflow-x-auto no-scrollbar px-6 md:px-10"
-              style={{ scrollSnapType: "x mandatory" as any }}
-            >
-              <div className="flex items-stretch gap-6 py-2">
-                {questions.map((q, idx) => {
-                  const isActive = idx === i;
-                  return (
-                    <div
-                      key={q.id}
-                      ref={el => { if (el) slideRefs.current[idx] = el; }}
-                      className={`flex-none w-[85%] max-w-xl scroll-ml-[10%] rounded-2xl border border-white/20 bg-white/5 backdrop-blur 
-                                  transition-transform duration-300 ${isActive ? "scale-100 opacity-100" : "scale-[0.96] opacity-70"}`}
-                      style={{ scrollSnapAlign: "center" as any }}
-                    >
-                      <div className="p-5">
-                        {/* Enunciado */}
-                        <h2 className="text-xl md:text-2xl font-semibold text-center">{q.q}</h2>
+          {/* Viewport a pantalla completa (full-bleed) */}
+          <div
+            id="quiz-viewport"
+            ref={viewportRef}
+            className="overflow-x-auto"
+            style={{
+              scrollSnapType: "x mandatory" as any,
+              width: "100vw",
+              marginLeft: "calc(50% - 50vw)",
+              marginRight: "calc(50% - 50vw)",
+            }}
+          >
+            <div className="flex items-stretch gap-6 py-2 px-4 md:px-8">
+              {questions.map((q, idx) => {
+                const isActive = idx === i;
+                return (
+                  <div
+                    key={q.id}
+                    ref={el => { if (el) slideRefs.current[idx] = el; }}
+                    className={`flex-none w-[90vw] max-w-3xl scroll-ml-[5vw] rounded-2xl border border-white/20 bg-white/5 backdrop-blur
+                                transition-transform duration-300 ${isActive ? "scale-100 opacity-100" : "scale-[0.98] opacity-80"}`}
+                    style={{ scrollSnapAlign: "center" as any }}
+                  >
+                    <div className="p-6 md:p-8">
+                      {/* Enunciado grande */}
+                      <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug">{q.q}</h2>
 
-                        {/* Botones de voto */}
-                        <div className="mt-6 grid grid-cols-3 gap-3">
-                          {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(([label, val]) => {
-                            const pressed = choices[q.id] === val;
-                            const base =
-                              val === 1
-                                ? "bg-green-200/90 text-green-900"
-                                : val === -1
-                                ? "bg-red-200/90 text-red-900"
-                                : "bg-gray-200/90 text-gray-900";
-                            return (
-                              <button
-                                key={label}
-                                className={`px-4 py-3 rounded-xl text-sm font-semibold hover:opacity-95 transition border
-                                  ${pressed ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"} ${base}`}
-                                onClick={() => { setI(idx); pick(q.id, val); }}
-                                aria-pressed={pressed}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* Más información (negrita) */}
-                        <button
-                          className="mt-4 w-full text-sm font-bold hover:opacity-80"
-                          onClick={() => setExpandedById(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
-                          aria-expanded={!!expandedById[q.id]}
-                          aria-controls={`more-info-${q.id}`}
-                        >
-                          Más información
-                        </button>
-
-                        {expandedById[q.id] && (
-                          <div id={`more-info-${q.id}`} className="mt-3 border border-white/15 rounded-xl p-3 bg-white/5">
-                            {q.queSeVota && (
-                              <>
-                                <h3 className="font-medium mb-2">Qué se vota</h3>
-                                <p className="text-sm opacity-90 whitespace-pre-line">{q.queSeVota}</p>
-                              </>
-                            )}
-
-                            {(q.aFavor?.length || q.enContra?.length) ? (
-                              <div className="mt-3 grid md:grid-cols-2 gap-3">
-                                {q.aFavor?.length ? (
-                                  <div>
-                                    <h4 className="font-semibold mb-1">Argumentos a favor</h4>
-                                    <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
-                                      {q.aFavor.map((t, idx2) => <li key={idx2}>{t}</li>)}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                                {q.enContra?.length ? (
-                                  <div>
-                                    <h4 className="font-semibold mb-1">Argumentos en contra</h4>
-                                    <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
-                                      {q.enContra.map((t, idx2) => <li key={idx2}>{t}</li>)}
-                                    </ul>
-                                  </div>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            {q.url && (
-                              <div className="mt-3 text-sm">
-                                <a className="underline hover:opacity-80" href={q.url} target="_blank" rel="noreferrer">
-                                  Fuente oficial
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                      {/* Botones de voto */}
+                      <div className="mt-8 grid grid-cols-3 gap-4">
+                        {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(([label, val]) => {
+                          const pressed = choices[q.id] === val;
+                          const base =
+                            val === 1
+                              ? "bg-green-200/90 text-green-900"
+                              : val === -1
+                              ? "bg-red-200/90 text-red-900"
+                              : "bg-gray-200/90 text-gray-900";
+                          return (
+                            <button
+                              key={label}
+                              className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold hover:opacity-95 transition border
+                                ${pressed ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"} ${base}`}
+                              onClick={() => { setI(idx); pick(q.id, val); }}
+                              aria-pressed={pressed}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
                       </div>
+
+                      {/* Más información (negrita) */}
+                      <button
+                        className="mt-5 w-full text-sm font-bold hover:opacity-80"
+                        onClick={() => setExpandedById(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
+                        aria-expanded={!!expandedById[q.id]}
+                        aria-controls={`more-info-${q.id}`}
+                      >
+                        Más información
+                      </button>
+
+                      {expandedById[q.id] && (
+                        <div id={`more-info-${q.id}`} className="mt-3 border border-white/15 rounded-xl p-4 bg-white/5">
+                          {q.queSeVota && (
+                            <>
+                              <h3 className="font-medium mb-2">Qué se vota</h3>
+                              <p className="text-sm opacity-90 whitespace-pre-line">{q.queSeVota}</p>
+                            </>
+                          )}
+
+                          {(q.aFavor?.length || q.enContra?.length) ? (
+                            <div className="mt-3 grid md:grid-cols-2 gap-3">
+                              {q.aFavor?.length ? (
+                                <div>
+                                  <h4 className="font-semibold mb-1">Argumentos a favor</h4>
+                                  <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                                    {q.aFavor.map((t, idx2) => <li key={idx2}>{t}</li>)}
+                                  </ul>
+                                </div>
+                              ) : null}
+                              {q.enContra?.length ? (
+                                <div>
+                                  <h4 className="font-semibold mb-1">Argumentos en contra</h4>
+                                  <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                                    {q.enContra.map((t, idx2) => <li key={idx2}>{t}</li>)}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </div>
+                          ) : null}
+
+                          {q.url && (
+                            <div className="mt-3 text-sm">
+                              <a className="underline hover:opacity-80" href={q.url} target="_blank" rel="noreferrer">
+                                Fuente oficial
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-
-            {/* Botonera inferior fija */}
-            <div className="fixed left-1/2 -translate-x-1/2 bottom-10 w-[92%] max-w-3xl flex items-center justify-between z-10">
-              <button
-                onClick={back}
-                disabled={i === 0}
-                className={`px-4 py-2 rounded-lg transition ${
-                  i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"
-                }`}
-              >
-                Volver atrás
-              </button>
-              <button onClick={showResults} className="btn-eu">Ver resultados</button>
-            </div>
-
-            <div className="h-[160px]" />
           </div>
+
+          {/* Botonera inferior fija */}
+          <div className="fixed left-1/2 -translate-x-1/2 bottom-10 w-[92%] max-w-3xl flex items-center justify-between z-20">
+            <button
+              onClick={back}
+              disabled={i === 0}
+              className={`px-4 py-2 rounded-lg transition ${i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"}`}
+            >
+              Volver atrás
+            </button>
+            <button onClick={showResults} className="btn-eu">Ver resultados</button>
+          </div>
+
+          <div className="h-[160px]" />
         </section>
       )}
     </main>
