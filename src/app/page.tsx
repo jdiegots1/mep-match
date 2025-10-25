@@ -22,14 +22,26 @@ export default function Page() {
 
         {/* Título */}
         <h1
-          className={`text-3xl sm:text-5xl font-extrabold tracking-tight ${mounted ? "fade-in fade-in-1" : "opacity-0"}`}
+          className={`text-3xl sm:text-5xl font-extrabold tracking-tight ${
+            mounted ? "fade-in fade-in-1" : "opacity-0"
+          }`}
         >
           ¿A qué <span className="text-[#ffcc00]">eurodiputado</span> me parezco?
         </h1>
 
+        {/* Separador animado */}
+        <div
+          aria-hidden
+          className={`mx-auto mt-4 h-[2px] rounded-full bg-white/40 transition-[width,opacity] duration-700 ease-out ${
+            mounted ? "w-40 sm:w-64 opacity-100" : "w-0 opacity-0"
+          }`}
+        />
+
         {/* Subtítulo */}
         <p
-          className={`mt-4 text-base sm:text-lg text-white/80 ${mounted ? "fade-in fade-in-2" : "opacity-0"}`}
+          className={`mt-4 text-base sm:text-lg text-white/80 ${
+            mounted ? "fade-in fade-in-2" : "opacity-0"
+          }`}
         >
           Responde a votaciones reales del Parlamento Europeo y descubre con quién
           coincides más. Datos abiertos de HowTheyVote.eu.
@@ -38,7 +50,7 @@ export default function Page() {
         {/* CTA */}
         <div className={`mt-8 ${mounted ? "fade-in fade-in-3" : "opacity-0"}`}>
           <button
-            className="btn-eu text-base sm:text-lg"
+            className="btn-eu text-base sm:text-lg cursor-pointer"
             onClick={() => router.push("/quiz")}
             aria-label="Empezar el cuestionario"
           >
