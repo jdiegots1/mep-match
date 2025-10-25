@@ -126,9 +126,7 @@ export default function QuizPage() {
 
   const vote = (qId: string, val: number) => {
     setChoices((prev) => ({ ...prev, [qId]: val }));
-    if (index < total - 1) {
-      setIndex((i) => i + 1);
-    }
+    if (index < total - 1) setIndex((i) => i + 1);
   };
 
   const filteredChoices = useMemo(() => {
@@ -190,21 +188,21 @@ export default function QuizPage() {
         {!done ? (
           <motion.section
             key={`q-${current.id}`}
-            className="flex-1 w-full grid place-items-start"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
+            className="flex-1 w-full"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.25 }}
           >
             <div className="w-full">
-              {/* Enunciado centrado */}
-              <div className="max-w-3xl mx-auto">
-                <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug mb-5">
+              {/* Enunciado centrado, más ancho */}
+              <div className="max-w-5xl mx-auto">
+                <h2 className="text-2xl md:text-3xl font-semibold text-center leading-snug mb-8">
                   {current.q}
                 </h2>
 
-                {/* Tarjeta acciones */}
-                <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
+                {/* Tarjeta acciones — más separada/abajo */}
+                <div className="mt-6 rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {([
                       ["A favor", 1, "bg-green-200/90 text-green-900"],
@@ -215,7 +213,7 @@ export default function QuizPage() {
                       return (
                         <button
                           key={label}
-                          className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold hover:opacity-95 transition border ${base} ${
+                          className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border ${base} ${
                             pressed
                               ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
                               : "border-transparent"
@@ -229,7 +227,7 @@ export default function QuizPage() {
                     })}
                   </div>
 
-                  <div className="mt-4 flex items-center justify-between gap-3">
+                  <div className="mt-5 flex items-center justify-between gap-3">
                     <InfoDialog q={current} />
                     <div className="text-xs md:text-sm opacity-70">
                       {choices[current.id] !== undefined
@@ -239,46 +237,18 @@ export default function QuizPage() {
                   </div>
                 </div>
 
-                {/* Navegación inferior */}
-                <div className="mt-6 flex items-center justify-between">
-                  <button
-                    onClick={() => setIndex((i) => Math.max(0, i - 1))}
-                    disabled={index === 0}
-                    className={`px-4 py-2 rounded-lg transition ${
-                      index === 0
-                        ? "bg-white/10 opacity-50 cursor-not-allowed"
-                        : "bg-white/10 hover:bg-white/15"
-                    }`}
-                  >
-                    Volver atrás
-                  </button>
-
-                  {index < total - 1 ? (
-                    <button
-                      onClick={() => setIndex((i) => Math.min(total - 1, i + 1))}
-                      className="btn-eu"
-                    >
-                      Siguiente
-                    </button>
-                  ) : (
-                    <button onClick={() => setDone(true)} className="btn-eu">
-                      Ver resultados
-                    </button>
-                  )}
-                </div>
+                <div className="h-[140px]" />
               </div>
             </div>
-
-            <div className="h-[120px]" />
           </motion.section>
         ) : (
           <motion.section
             key="results"
             className="flex-1 grid place-items-center w-full"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.2 }}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.25 }}
           >
             <div className="w-full max-w-3xl">
               <div className="mb-4 flex items-center justify-between gap-3">
@@ -295,8 +265,8 @@ export default function QuizPage() {
                       role="tab"
                       aria-selected={mode === m}
                       onClick={() => setMode(m)}
-                      className={`px-3 py-1.5 text-sm transition ${
-                        mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
+                      className={`px-3 py-1.5 text-sm ${
+                        mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : ""
                       }`}
                     >
                       {m === "coverage" ? "Más realista" : "Solo coincidencias"}
@@ -378,24 +348,28 @@ export default function QuizPage() {
                 );
               })()}
 
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  onClick={() => {
-                    setDone(false);
-                    setIndex((i) => Math.min(i, total - 1));
-                  }}
-                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 transition"
-                >
-                  Volver atrás
-                </button>
-                <a href="/" className="btn-eu">
-                  Ir a inicio
-                </a>
-              </div>
+              <div className="h-[140px]" />
             </div>
           </motion.section>
         )}
       </AnimatePresence>
+
+      {/* Botonera inferior fija — SIEMPRE visible y SIN transiciones */}
+      <div className="fixed left-1/2 -translate-x-1/2 bottom-8 w-[92%] max-w-3xl flex items-center justify-between z-20">
+        <button
+          onClick={() => setIndex((i) => Math.max(0, i - 1))}
+          disabled={!questions.length || index === 0 || done}
+          className={`px-4 py-2 rounded-lg ${index === 0 || done ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10"}`}
+        >
+          Volver atrás
+        </button>
+        <button
+          onClick={() => setDone(true)}
+          className="px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold"
+        >
+          Ver resultados
+        </button>
+      </div>
     </main>
   );
 }
@@ -406,7 +380,7 @@ function InfoDialog({ q }: { q: Question }) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
-        <button className="px-4 py-2 rounded-xl text-sm font-bold bg-white/80 text-black hover:bg-white transition">
+        <button className="px-4 py-2 rounded-xl text-sm font-bold bg-white/80 text-black">
           Más información
         </button>
       </Dialog.Trigger>
@@ -459,7 +433,7 @@ function InfoDialog({ q }: { q: Question }) {
 
           <Dialog.Close asChild>
             <button
-              className="mt-5 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black hover:bg-white"
+              className="mt-5 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black"
               aria-label="Cerrar"
             >
               Cerrar
