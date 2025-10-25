@@ -56,7 +56,7 @@ const colorFromVal = (v: number | undefined) =>
     : v === -1
     ? "bg-red-600"
     : v === 0
-    ? "bg-yellow-500"
+    ? "bg-amber-500"
     : "bg-gray-500";
 
 /* ====================== Página ====================== */
@@ -171,7 +171,7 @@ export default function QuizPage() {
 
   const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
-  // Ranking con filtro + empates comprimidos (1º, … siguientes grupo 2º, etc.)
+  // Ranking con filtro + empates comprimidos (1º grupo=1, siguiente grupo=2, etc.)
   const rankedAll = useMemo(() => {
     if (!done) return [];
     const q = search.trim().toLowerCase();
@@ -186,7 +186,7 @@ export default function QuizPage() {
     });
 
     let lastPct: number | null = null;
-    let rankNumber = 0; // 1, 2, 3… por grupo de empate
+    let rankNumber = 0;
     return arr.map((s, i) => {
       const pct = Number((s.affinity * 100).toFixed(2));
       const isNewGroup = lastPct === null || pct !== lastPct;
@@ -200,8 +200,8 @@ export default function QuizPage() {
       return {
         memberId: s.memberId,
         pct,
-        pos: rankNumber,   // <— 1, 2, 3… por grupo
-        showPos,           // solo el primero del grupo muestra número
+        pos: rankNumber,
+        showPos,
         name: m?.name ?? s.memberId,
         group: m?.group ?? "—",
         country: m?.country ?? "—",
@@ -293,7 +293,7 @@ export default function QuizPage() {
                         [
                           ["A favor", 1, "green"],
                           ["En contra", -1, "red"],
-                          ["Abstención", 0, "gray"],
+                          ["Abstención", 0, "amber"], // ← cambiamos el color
                         ] as const
                       ).map(([label, val, color]) => {
                         const selectedVal = choices[current.id];
@@ -307,7 +307,7 @@ export default function QuizPage() {
                             ? "bg-green-700 text-white"
                             : color === "red"
                             ? "bg-red-700 text-white"
-                            : "bg-gray-600 text-white";
+                            : "bg-amber-600 text-white"; // ← naranja/amarillo
 
                         return (
                           <button
@@ -348,7 +348,7 @@ export default function QuizPage() {
             transition={{ duration: 0.25 }}
           >
             <div className="w-full max-w-6xl mx-auto">
-              {/* Encabezado y tabs */}
+              {/* Encabezado estático (no cambia con la key del modo) */}
               <div className="mb-4 flex items-center justify-between gap-3 px-2">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
                 <div
@@ -372,7 +372,7 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* Top-3 centrado vertical y horizontalmente (ocupa ~80vh) */}
+              {/* Top-3 con transición (solo cambia esta parte) */}
               {computeScores.length < 5 ? (
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               ) : (
@@ -416,9 +416,8 @@ export default function QuizPage() {
                                 )}
                                 <div className="flex-1 min-w-0">
                                   <div className="text-2xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
-                                  <div className="text-sm md:text-base opacity-80 truncate">
-                                    {mepGroup(id)} • {mepCountry(id)}
-                                  </div>
+                                  <div className="text-sm md:text-base opacity-80 truncate">{mepGroup(id)}</div>
+                                  <div className="text-xs md:text-sm opacity-70 truncate">{mepCountry(id)}</div>
                                   <GhostButton onClick={() => setDetailFor(id)} className="mt-3">
                                     Mira sus votos
                                   </GhostButton>
@@ -446,7 +445,8 @@ export default function QuizPage() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold truncate">{mepName(id)}</div>
-                                <div className="text-xs opacity-70 truncate">{mepGroup(id)} • {mepCountry(id)}</div>
+                                <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
+                                <div className="text-[11px] opacity-60 truncate">{mepCountry(id)}</div>
                                 <span className="mt-2 block">
                                   <span
                                     onClick={() => setDetailFor(id)}
@@ -471,24 +471,24 @@ export default function QuizPage() {
                               {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
                               {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
                             </div>
-
-                            {/* CTA para ir al ranking */}
-                            <div className="text-center mt-8">
-                              <span
-                                onClick={smoothScrollToRanking}
-                                className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
-                                role="button"
-                              >
-                                Mira tus coincidencias con todos los eurodiputados
-                              </span>
-                            </div>
                           </>
                         );
                       })()}
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* Ranking de coincidencia (debajo del pliegue) */}
+                  {/* CTA ESTÁTICO (no entra en la transición por modo) */}
+                  <div className="text-center mt-8">
+                    <span
+                      onClick={smoothScrollToRanking}
+                      className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
+                      role="button"
+                    >
+                      Mira tus coincidencias con todos los eurodiputados
+                    </span>
+                  </div>
+
+                  {/* Ranking de coincidencia */}
                   <div ref={rankingRef} className="mt-24 px-2">
                     <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
@@ -498,7 +498,7 @@ export default function QuizPage() {
                       className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
                     />
 
-                    {/* Lista integrada con el fondo: sin recuadro contenedor */}
+                    {/* Lista integrada con el fondo */}
                     <div>
                       <AnimatePresence initial={false}>
                         {rankedAll.slice(0, showCount).map((r) => (
@@ -528,7 +528,8 @@ export default function QuizPage() {
 
                             <div className="flex-1 min-w-0">
                               <div className="font-medium truncate">{r.name}</div>
-                              <div className="text-xs opacity-70 truncate">{r.group} • {r.country}</div>
+                              <div className="text-xs opacity-70 truncate">{r.group}</div>
+                              <div className="text-[11px] opacity-60 truncate">{r.country}</div>
                             </div>
                             <div className="w-24 text-right font-mono">{r.pct.toFixed(2)}%</div>
                             <span
@@ -566,50 +567,83 @@ export default function QuizPage() {
 
       {/* Barra inferior fija */}
       <div className="fixed left-0 right-0 bottom-0 z-30 bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
-        <div className="mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-between">
+        {/* Transición suave entre estados de botones */}
+        <AnimatePresence initial={false} mode="wait">
           {!overlayOpen ? (
-            <>
-              <button
-                onClick={() => {
-                  if (done) {
-                    setDone(false);
-                    return;
-                  }
-                  setIndex((i) => Math.max(0, i - 1));
-                }}
-                disabled={!questions.length || (index === 0 && !done)}
-                className={`px-4 py-2 rounded-lg ${
-                  !questions.length || (index === 0 && !done)
-                    ? "bg-white/10 opacity-50 cursor-not-allowed"
-                    : "bg-white/10 hover:bg-white/15 cursor-pointer"
-                }`}
+            !done ? (
+              <motion.div
+                key="quiz-buttons"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-between"
               >
-                Volver atrás
-              </button>
-              <button
-                onClick={() => setDone(true)}
-                className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
-                  done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
-                }`}
-                disabled={done}
+                <button
+                  onClick={() => {
+                    if (done) {
+                      setDone(false);
+                      return;
+                    }
+                    setIndex((i) => Math.max(0, i - 1));
+                  }}
+                  disabled={!questions.length || (index === 0 && !done)}
+                  className={`px-4 py-2 rounded-lg ${
+                    !questions.length || (index === 0 && !done)
+                      ? "bg-white/10 opacity-50 cursor-not-allowed"
+                      : "bg-white/10 hover:bg-white/15 cursor-pointer"
+                  }`}
+                >
+                  Volver atrás
+                </button>
+                <button
+                  onClick={() => setDone(true)}
+                  className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
+                    done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+                  }`}
+                  disabled={done}
+                >
+                  Ver resultados
+                </button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="results-back-only"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18 }}
+                className="mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-center"
               >
-                Ver resultados
-              </button>
-            </>
+                <button
+                  onClick={() => setDone(false)}
+                  className="px-5 py-2 rounded-lg bg-white/10 hover:bg-white/15 cursor-pointer"
+                >
+                  Volver atrás
+                </button>
+              </motion.div>
+            )
           ) : (
-            <div className="w-full flex items-center justify-center">
+            <motion.div
+              key="close-only"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="mx-auto w-full max-w-3xl px-4 py-3 flex items-center justify-center"
+            >
               <button
                 onClick={() => {
                   if (detailFor) setDetailFor(null);
                   else if (infoOpen) setInfoOpen(false);
                 }}
-                className="px-5 py-2 rounded-lg bg-white/90 text-black font-semibold hover:bg-white"
+                className="px-5 py-2 rounded-lg bg-white/90 text-black font-semibold hover:bg-white cursor-pointer"
               >
                 Cerrar
               </button>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
       </div>
 
       {/* Modal detalle comparativa */}
@@ -720,14 +754,7 @@ function InfoDialog({
               </div>
             ) : null}
 
-            <Dialog.Close asChild>
-              <button
-                className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
-                aria-label="Cerrar"
-              >
-                Cerrar
-              </button>
-            </Dialog.Close>
+            {/* SIN botón de cerrar interno; se usa la barra inferior */}
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
@@ -789,7 +816,8 @@ function DetailDialog({
           >
             <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
               Comparativa de votos — {mepName(memberId)}{" "}
-              <span className="opacity-70">({mepGroup(memberId)} • {mepCountry(memberId)})</span>
+              <span className="opacity-70">({mepGroup(memberId)})</span>
+              <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
             </Dialog.Title>
 
             <div className="rounded-xl border border-white/15 overflow-hidden">
@@ -813,14 +841,7 @@ function DetailDialog({
               </div>
             </div>
 
-            <Dialog.Close asChild>
-              <button
-                className="mt-6 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white/90 text-black cursor-pointer"
-                aria-label="Cerrar"
-              >
-                Cerrar
-              </button>
-            </Dialog.Close>
+            {/* SIN botón de cerrar interno; se usa la barra inferior */}
           </motion.div>
         </Dialog.Content>
       </Dialog.Portal>
