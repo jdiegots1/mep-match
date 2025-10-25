@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 import useEmblaCarousel from "embla-carousel-react";
@@ -58,18 +58,52 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<Mode>("coverage");
 
-  // Carrusel
+  // ---- Embla + viewport ref para medir ancho
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  // callback para pasar a Embla y guardar la referencia de viewport
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
-    align: "center",
+    // con spacers, usamos start
+    align: "start",
     containScroll: "trimSnaps",
     inViewThreshold: 0.6,
     skipSnaps: false,
     startIndex: 0,
   });
 
+  // “bridge” ref: asigna al mismo tiempo emblaRef y viewportRef
+  const setViewport = useCallback(
+    (el: HTMLDivElement | null) => {
+      viewportRef.current = el;
+      emblaRef(el);
+    },
+    [emblaRef]
+  );
+
   const [index, setIndex] = useState(0);
   const total = questions.length;
+
+  // ---- spacing dinámico para centrar 1ª y última
+  const [sidePad, setSidePad] = useState(0);
+  // Config de slide: misma que en clase w-[86vw] max-w-3xl (48rem = 768px)
+  const SLIDE_VW = 0.86;
+  const SLIDE_MAX_PX = 768; // 48rem
+
+  const recalcSidePad = useCallback(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const vpW = vp.clientWidth || window.innerWidth;
+    const slideW = Math.min(vpW * SLIDE_VW, SLIDE_MAX_PX);
+    const pad = Math.max((vpW - slideW) / 2, 0);
+    setSidePad(pad);
+  }, []);
+
+  useEffect(() => {
+    recalcSidePad();
+    const onResize = () => recalcSidePad();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [recalcSidePad]);
 
   // UI / resultados
   const [entered, setEntered] = useState(false);
@@ -139,18 +173,23 @@ export default function QuizPage() {
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", () => onSelect(emblaApi));
-    emblaApi.on("reInit", () => onSelect(emblaApi));
-    // centrar 1ª slide al montar (y tras el siguiente frame)
+    emblaApi.on("reInit", () => {
+      recalcSidePad();
+      onSelect(emblaApi);
+    });
+    // ir al inicio sin animación
     emblaApi.scrollTo(0, true);
+    // doble tick por si faltan cálculos de layout
     setTimeout(() => emblaApi.scrollTo(0, true), 0);
-  }, [emblaApi, onSelect]);
+  }, [emblaApi, onSelect, recalcSidePad]);
 
   // Re-centrar al tener slides
   useEffect(() => {
     if (!emblaApi || total === 0) return;
+    recalcSidePad();
     emblaApi.reInit();
     requestAnimationFrame(() => emblaApi.scrollTo(0, true));
-  }, [emblaApi, total]);
+  }, [emblaApi, total, recalcSidePad]);
 
   // Navegación determinista
   const goTo = useCallback(
@@ -205,7 +244,8 @@ export default function QuizPage() {
   const mepById = (id: string) => members.find((m) => m.id === id);
   const mepName = (id: string) => mepById(id)?.name || id;
   const mepGroup = (id: string) => mepById(id)?.group || "—";
-  const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
+  const mepImage = (id: string) =>
+    mepById(id)?.image ?? mepById(id)?.photo ?? null;
 
   if (!total) {
     return (
@@ -280,18 +320,23 @@ export default function QuizPage() {
               ›
             </button>
 
-            {/* Viewport Embla (full-bleed con padding lateral para centrar 1ª slide) */}
+            {/* Viewport Embla (full-bleed). Sin paddings externos ni márgenes negativos. */}
             <div
-              className="overflow-hidden px-6 md:px-10 lg:px-16"
+              className="overflow-hidden"
               style={{
                 width: "100vw",
                 marginLeft: "calc(50% - 50vw)",
                 marginRight: "calc(50% - 50vw)",
               }}
-              ref={emblaRef}
+              ref={setViewport}
             >
-              {/* Contenedor CON gap (no márgenes negativos) */}
+              {/* Track con gap; añadimos spacers dinámicos */}
               <div className="flex items-stretch gap-10 md:gap-16 py-4">
+                {/* Spacer izquierdo */}
+                <div
+                  aria-hidden
+                  style={{ flex: `0 0 ${sidePad}px` }}
+                />
                 {questions.map((q, idx) => {
                   const active = idx === index;
                   const answered = choices[q.id] !== undefined;
@@ -335,7 +380,6 @@ export default function QuizPage() {
                           })}
                         </div>
 
-                        {/* Fila inferior: “Más información” + aviso de edición */}
                         <div className="mt-4 flex items-center justify-between gap-3">
                           <InfoDialog q={q} />
                           <div className="text-xs md:text-sm opacity-70">
@@ -346,6 +390,11 @@ export default function QuizPage() {
                     </div>
                   );
                 })}
+                {/* Spacer derecho */}
+                <div
+                  aria-hidden
+                  style={{ flex: `0 0 ${sidePad}px` }}
+                />
               </div>
             </div>
 
@@ -406,9 +455,8 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               )}
 
-              <div className="transition-opacity duration-200 opacity-100">
-                {/* ... tarjetas de resultados tal cual ... */}
-              </div>
+              {/* Aquí mantén tus tarjetas de resultados como las tenías */}
+              <div className="transition-opacity duration-200 opacity-100"></div>
 
               <div className="mt-6 flex items-center justify-between">
                 <button
