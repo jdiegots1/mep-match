@@ -6,9 +6,35 @@
 :root{
   --eu-blue:#003399;
   --eu-yellow:#ffcc00;
+
+  /* Fondo (oscuro → claro) */
+  --bg-dark:#001a66;
+  --bg-light:#003399;
 }
 
-html, body{ height:100%; }
+/* Asegura que el documento puede crecer y el fondo lo cubre todo */
+html, body{
+  min-height:100%;
+}
+
+/* Fondo fijo, único, que no se repinta al añadir más contenido */
+body{
+  position: relative;
+  background-color: var(--bg-light); /* fallback */
+}
+body::before{
+  content:"";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* Gradiente estable: oscuro → claro de arriba a abajo */
+  background: linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-light) 100%);
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  /* Cubre siempre todo el viewport */
+  background-size: 100% 100%;
+}
 
 /* ---------- Animaciones ---------- */
 @keyframes fade-in-up{
@@ -96,7 +122,6 @@ html, body{ height:100%; }
 
 .swiper-slide { transition: transform .32s ease, opacity .32s ease, filter .32s ease; opacity:.28; filter: blur(1.5px); }
 .swiper-slide.swiper-slide-active { opacity:1; filter:none; transform:none; }
-
 
 /* Evitar scrollbar horizontal del body cuando el carrusel es full-bleed */
 body{ overflow-x:hidden; }
