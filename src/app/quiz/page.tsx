@@ -59,7 +59,10 @@ export default function QuizPage() {
   const [index, setIndex] = useState(0);
   const [entered, setEntered] = useState(false);
   const [done, setDone] = useState(false);
-  const [infoOpen, setInfoOpen] = useState(false); // ⬅️ estado del Dialog
+  const [infoOpen, setInfoOpen] = useState(false);
+
+  // para hover grisáceo
+  const [hoverVal, setHoverVal] = useState<number | null>(null);
 
   const total = questions.length;
   const current = questions[index];
@@ -119,15 +122,17 @@ export default function QuizPage() {
     };
   }, []);
 
+  // progreso por posición (no por respuestas)
   const progressPct = useMemo(() => {
     if (!total) return 0;
-    const answered = Object.keys(choices).filter((k) => choices[k] !== undefined).length;
-    return Math.round((Math.min(answered, total) / total) * 100);
-  }, [choices, total]);
+    const pos = Math.min(index + 1, total);
+    return Math.round((pos / total) * 100);
+  }, [index, total]);
 
   const vote = (qId: string, val: number) => {
     setChoices((prev) => ({ ...prev, [qId]: val }));
     if (index < total - 1) setIndex((i) => i + 1);
+    setHoverVal(null);
   };
 
   const filteredChoices = useMemo(() => {
@@ -174,7 +179,7 @@ export default function QuizPage() {
         </div>
       </header>
 
-      {/* Progreso */}
+      {/* Progreso (por índice actual) */}
       <div className="max-w-5xl w-full mx-auto mb-4">
         <div className="h-2 rounded-full bg-white/20 overflow-hidden">
           <div
@@ -221,23 +226,60 @@ export default function QuizPage() {
               <div className="row-start-2 row-end-3 col-span-1">
                 <div className="max-w-3xl mx-auto mt-14 md:mt-16">
                   <div className="rounded-2xl border border-white/20 bg-white/5 backdrop-blur shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-5 md:p-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {([
-                        ["A favor", 1, "bg-green-200/90 text-green-900"],
-                        ["En contra", -1, "bg-red-200/90 text-red-900"],
-                        ["Abstención", 0, "bg-gray-200/90 text-gray-900"],
-                      ] as const).map(([label, val, base]) => {
-                        const pressed = choices[current.id] === val;
+                    <div
+                      className={`grid grid-cols-1 sm:grid-cols-3 gap-3 ${
+                        hoverVal !== null && choices[current.id] === undefined ? "group" : ""
+                      }`}
+                    >
+                      {(
+                        [
+                          ["A favor", 1, "green"],
+                          ["En contra", -1, "red"],
+                          ["Abstención", 0, "gray"],
+                        ] as const
+                      ).map(([label, val, color]) => {
+                        const selectedVal = choices[current.id];
+                        const isPressed = selectedVal === val;
+
+                        // Atenuar cuando:
+                        // - hay selección y este no es el elegido
+                        // - o NO hay selección pero hay hover y este no es el hover
+                        const dimBecauseSelected =
+                          selectedVal !== undefined && !isPressed;
+                        const dimBecauseHover =
+                          selectedVal === undefined &&
+                          hoverVal !== null &&
+                          hoverVal !== val;
+
+                        const dim = dimBecauseSelected || dimBecauseHover;
+
+                        // Colores: no seleccionado => pálido; seleccionado => fondo oscuro + texto blanco
+                        const basePale =
+                          color === "green"
+                            ? "bg-green-200/90 text-green-900"
+                            : color === "red"
+                            ? "bg-red-200/90 text-red-900"
+                            : "bg-gray-200/90 text-gray-900";
+
+                        const baseSolid =
+                          color === "green"
+                            ? "bg-green-700 text-white"
+                            : color === "red"
+                            ? "bg-red-700 text-white"
+                            : "bg-gray-600 text-white";
+
                         return (
                           <button
                             key={label}
-                            className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border cursor-pointer ${base} ${
-                              pressed
-                                ? "ring-2 ring-offset-0 ring-[var(--eu-yellow)] border-transparent"
-                                : "border-transparent"
-                            }`}
+                            onMouseEnter={() => setHoverVal(val)}
+                            onMouseLeave={() => setHoverVal(null)}
+                            className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border cursor-pointer transition
+                              ${isPressed ? baseSolid : basePale}
+                              ${dim ? "opacity-45 grayscale" : ""}
+                              ${isPressed ? "border-transparent shadow-inner" : "border-transparent"}
+                            `}
                             onClick={() => vote(current.id, val)}
-                            aria-pressed={pressed}
+                            aria-pressed={isPressed}
                           >
                             {label}
                           </button>
@@ -445,7 +487,6 @@ function InfoDialog({
         >
           <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
-          {/* Descripción justificada */}
           {q.queSeVota ? (
             <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
           ) : (
@@ -454,7 +495,6 @@ function InfoDialog({
 
           {(q.aFavor?.length || q.enContra?.length) ? (
             <div className="mt-5 grid md:grid-cols-2 gap-6">
-              {/* A favor */}
               {q.aFavor?.length ? (
                 <div>
                   <div className="w-full flex justify-center mb-3">
@@ -470,7 +510,6 @@ function InfoDialog({
                 </div>
               ) : null}
 
-              {/* En contra */}
               {q.enContra?.length ? (
                 <div>
                   <div className="w-full flex justify-center mb-3">
