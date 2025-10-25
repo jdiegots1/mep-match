@@ -978,7 +978,7 @@ function InfoDialog({
             className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
             {/* Panel */}
-            <div className="w-[92vw] max-w-[820px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto">
+            <div className="w-[92vw] max-w-[820px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 pb-28 md:p-7 md:pb-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
               {/* Descripción */}
@@ -999,6 +999,7 @@ function InfoDialog({
                   >
                     Ampliar información
                   </a>
+                  <div className="h-4 md:hidden" />
                 </div>
               )}
 
@@ -1095,7 +1096,7 @@ function DetailDialog({
             className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
             {/* Panel */}
-            <div className="w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[85vh] overflow-y-auto">
+            <div className="w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 pb-28 md:p-7 md:pb-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
               {/* Título: móvil solo nombre; desktop completo */}
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
                 <span className="md:hidden">{mepName(memberId)}</span>
@@ -1105,6 +1106,7 @@ function DetailDialog({
                   <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
                 </span>
               </Dialog.Title>
+              <div className="h-4 md:hidden" />
 
               {/* Móvil: sin cabecera/recuadro, pregunta más pequeña */}
               <div className="md:hidden">
