@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Matrix } from "@/lib/similarity";
 import { scoreMembers } from "@/lib/similarity";
 
@@ -39,7 +39,6 @@ type Question = {
 
 type Mode = "coverage" | "raw";
 
-// util
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -60,12 +59,11 @@ export default function QuizPage() {
   const [done, setDone] = useState(false);
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({});
   const [mode, setMode] = useState<Mode>("coverage");
-
-  // recordar desde qué pregunta se llegó a "Resultados"
   const [returnIndex, setReturnIndex] = useState(0);
 
-  // dirección para animación de carrusel ("prev" => movemos a la derecha, "next" => a la izquierda)
-  const [dir, setDir] = useState<"prev" | "next" | null>(null);
+  // refs para carrusel
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const slideRefs = useRef<HTMLDivElement[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -117,11 +115,9 @@ export default function QuizPage() {
       setExpandedById({});
       setI(0);
       setDone(false);
-      setDir(null);
+      slideRefs.current = [];
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, []);
 
   const total = questions.length;
@@ -140,10 +136,8 @@ export default function QuizPage() {
   function pick(voteId: string, val: number) {
     setChoices(prev => ({ ...prev, [voteId]: val }));
     const nextIndex = i + 1;
-    if (nextIndex < total) {
-      setDir("next");
-      setI(nextIndex);
-    } else {
+    if (nextIndex < total) setI(nextIndex);
+    else {
       setReturnIndex(i);
       setDone(true);
     }
@@ -160,24 +154,44 @@ export default function QuizPage() {
       setI(Math.min(Math.max(returnIndex, 0), total - 1));
       return;
     }
-    if (i > 0) {
-      setDir("prev");
-      setI(i - 1);
-    }
+    if (i > 0) setI(i - 1);
   }
 
-  function gotoPrev() {
-    if (i > 0) {
-      setDir("prev");
-      setI(i - 1);
-    }
-  }
-  function gotoNext() {
-    if (i < total - 1) {
-      setDir("next");
-      setI(i + 1);
-    }
-  }
+  // --- Carrusel: desplaza suavemente al slide i
+  useEffect(() => {
+    const vp = viewportRef.current;
+    const slide = slideRefs.current[i];
+    if (!vp || !slide) return;
+    vp.scrollTo({ left: slide.offsetLeft - (vp.clientWidth - slide.clientWidth) / 2, behavior: "smooth" });
+  }, [i, total]);
+
+  // Si el usuario hace scroll manual, detecta el slide más cercano al parar
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    let t: any;
+    const onScroll = () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        const slides = slideRefs.current;
+        if (!slides.length) return;
+        let best = 0;
+        let bestDist = Infinity;
+        const center = vp.scrollLeft + vp.clientWidth / 2;
+        slides.forEach((el, idx) => {
+          const elCenter = el.offsetLeft + el.clientWidth / 2;
+          const d = Math.abs(elCenter - center);
+          if (d < bestDist) { bestDist = d; best = idx; }
+        });
+        setI(best);
+      }, 120);
+    };
+    vp.addEventListener("scroll", onScroll, { passive: true });
+    return () => { vp.removeEventListener("scroll", onScroll); clearTimeout(t); };
+  }, [total]);
+
+  function gotoPrev() { if (i > 0) setI(i - 1); }
+  function gotoNext() { if (i < total - 1) setI(i + 1); }
 
   // solo puntuamos votos que existan en matrix
   const filteredChoices = useMemo(() => {
@@ -210,24 +224,6 @@ export default function QuizPage() {
     );
   }
 
-  // vecinos para el “carrusel” visual
-  const prevQ = i > 0 ? questions[i - 1] : null;
-  const nextQ = i < total - 1 ? questions[i + 1] : null;
-
-  // clases de animación para el slide central
-  const slideIn =
-    dir === "next"
-      ? "translate-x-4 opacity-0"
-      : dir === "prev"
-      ? "-translate-x-4 opacity-0"
-      : "opacity-0";
-  const slideReady =
-    dir === "next"
-      ? "translate-x-0 opacity-100"
-      : dir === "prev"
-      ? "translate-x-0 opacity-100"
-      : "opacity-100";
-
   return (
     <main className="min-h-dvh flex flex-col p-6 relative">
       {/* Cabecera */}
@@ -246,9 +242,8 @@ export default function QuizPage() {
         </div>
       </div>
 
-      {/* “Pregunta X de Y” centrado */}
       {!done && (
-        <div className="max-w-5xl w-full mx-auto text-center mt-2 mb-1">
+        <div className="max-w-5xl w-full mx-auto text-center mt-2 mb-3">
           <div className="text-sm opacity-80">Pregunta {i + 1} de {total}</div>
         </div>
       )}
@@ -259,8 +254,6 @@ export default function QuizPage() {
           <div className="w-full max-w-3xl fade-in">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="text-2xl font-bold">Tus resultados</h2>
-
-              {/* Píldoras de modo */}
               <div
                 role="tablist"
                 aria-label="Modo de cálculo de afinidad"
@@ -269,9 +262,7 @@ export default function QuizPage() {
                 <button
                   role="tab"
                   aria-selected={mode === "coverage"}
-                  className={`px-3 py-1.5 text-sm transition ${
-                    mode === "coverage" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"
-                  }`}
+                  className={`px-3 py-1.5 text-sm transition ${mode === "coverage" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"}`}
                   onClick={() => setMode("coverage")}
                 >
                   Más realista
@@ -279,9 +270,7 @@ export default function QuizPage() {
                 <button
                   role="tab"
                   aria-selected={mode === "raw"}
-                  className={`px-3 py-1.5 text-sm transition ${
-                    mode === "raw" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"
-                  }`}
+                  className={`px-3 py-1.5 text-sm transition ${mode === "raw" ? "bg-[#ffcc00] text-black font-semibold" : "hover:bg-white/10"}`}
                   onClick={() => setMode("raw")}
                 >
                   Solo coincidencias
@@ -359,64 +348,17 @@ export default function QuizPage() {
           </div>
         </section>
       ) : (
-        // CUESTIONARIO
+        // CUESTIONARIO — carrusel real dentro de un único recuadro
         <section className="relative flex-1 w-full">
-          {/* ENUNCIADO tipo carrusel (con vecinos visibles) */}
-          <div className="relative max-w-5xl mx-auto mt-4 mb-8 h-[128px]">
-            <div className="absolute inset-0 flex items-center justify-center overflow-visible">
-              {/* cinta con 3 “slides” (prev/actual/next) */}
-              <div className="relative w-full h-full">
-                {/* Slide actual */}
-                <div
-                  key={current.id}
-                  className={`absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 text-center max-w-[80%] 
-                              transition-all duration-300 will-change-transform ${slideReady}`}
-                  style={{}}
-                >
-                  <h2
-                    className={`text-xl md:text-2xl font-semibold transform transition-all duration-300
-                                ${dir ? "opacity-0 " + slideIn : "opacity-100"}
-                               `}
-                    onAnimationEnd={() => setDir(null)}
-                  >
-                    {current.q}
-                  </h2>
-                </div>
-
-                {/* vecina anterior (atenuada) */}
-                {prevQ && (
-                  <div
-                    className="absolute left-[2%] top-1/2 -translate-y-1/2 text-left max-w-[32%] opacity-35 scale-[0.96] select-none pointer-events-none"
-                    aria-hidden="true"
-                  >
-                    <div className="text-sm leading-snug line-clamp-3">{prevQ.q}</div>
-                  </div>
-                )}
-
-                {/* vecina siguiente (atenuada) */}
-                {nextQ && (
-                  <div
-                    className="absolute right-[2%] top-1/2 -translate-y-1/2 text-right max-w-[32%] opacity-35 scale-[0.96] select-none pointer-events-none"
-                    aria-hidden="true"
-                  >
-                    <div className="text-sm leading-snug line-clamp-3">{nextQ.q}</div>
-                  </div>
-                )}
-              </div>
-
-              {/* desvanecidos laterales para efecto “alargado” */}
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[rgba(14,17,23,1)] to-[rgba(14,17,23,0)]" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[rgba(14,17,23,1)] to-[rgba(14,17,23,0)]" />
-            </div>
-
-            {/* Flechas en extremos de la PANTALLA */}
+          <div className="relative max-w-5xl mx-auto">
+            {/* Flechas en extremos de la pantalla */}
             <button
               aria-label="Pregunta anterior"
               onClick={gotoPrev}
               disabled={i === 0}
               className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
                 fixed left-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
-                hover:bg-white/20 transition ${i === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+                hover:bg-white/20 transition z-20 ${i === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               ‹
             </button>
@@ -426,114 +368,128 @@ export default function QuizPage() {
               disabled={i === total - 1}
               className={`hidden md:flex items-center justify-center w-12 h-12 rounded-full
                 fixed right-6 top-1/2 -translate-y-1/2 backdrop-blur bg-white/10 border border-white/20
-                hover:bg-white/20 transition ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
+                hover:bg-white/20 transition z-20 ${i === total - 1 ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               ›
             </button>
-          </div>
 
-          {/* RECUADRO FIJO (centrado, compacto) */}
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-32 w-[92%] max-w-md z-10">
-            <div className="border border-white/20 rounded-2xl bg-white/5 backdrop-blur p-4 h-[260px] flex flex-col overflow-hidden">
-              {/* Botones de voto */}
-              <div className="grid grid-cols-3 gap-2">
-                {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(([label, val]) => {
-                  const isPressed = choices[current.id] === val;
-                  const base =
-                    val === 1
-                      ? "bg-green-200/90 text-green-900"
-                      : val === -1
-                      ? "bg-red-200/90 text-red-900"
-                      : "bg-gray-200/90 text-gray-900";
+            {/* Viewport con scroll-snap */}
+            <div
+              ref={viewportRef}
+              className="overflow-x-auto no-scrollbar px-6 md:px-10"
+              style={{ scrollSnapType: "x mandatory" as any }}
+            >
+              <div className="flex items-stretch gap-6 py-2">
+                {questions.map((q, idx) => {
+                  const isActive = idx === i;
                   return (
-                    <button
-                      key={label}
-                      className={`px-3 py-2 rounded-xl text-sm font-semibold hover:opacity-95 transition border ${
-                        isPressed ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"
-                      } ${base}`}
-                      onClick={() => pick(current.id, val)}
-                      aria-pressed={isPressed}
+                    <div
+                      key={q.id}
+                      ref={el => { if (el) slideRefs.current[idx] = el; }}
+                      className={`flex-none w-[85%] max-w-xl scroll-ml-[10%] rounded-2xl border border-white/20 bg-white/5 backdrop-blur 
+                                  transition-transform duration-300 ${isActive ? "scale-100 opacity-100" : "scale-[0.96] opacity-70"}`}
+                      style={{ scrollSnapAlign: "center" as any }}
                     >
-                      {label}
-                    </button>
+                      <div className="p-5">
+                        {/* Enunciado */}
+                        <h2 className="text-xl md:text-2xl font-semibold text-center">{q.q}</h2>
+
+                        {/* Botones de voto */}
+                        <div className="mt-6 grid grid-cols-3 gap-3">
+                          {([["A favor", 1], ["En contra", -1], ["Abstención", 0]] as const).map(([label, val]) => {
+                            const pressed = choices[q.id] === val;
+                            const base =
+                              val === 1
+                                ? "bg-green-200/90 text-green-900"
+                                : val === -1
+                                ? "bg-red-200/90 text-red-900"
+                                : "bg-gray-200/90 text-gray-900";
+                            return (
+                              <button
+                                key={label}
+                                className={`px-4 py-3 rounded-xl text-sm font-semibold hover:opacity-95 transition border
+                                  ${pressed ? "ring-2 ring-offset-0 ring-[#ffcc00] border-white/0" : "border-transparent"} ${base}`}
+                                onClick={() => { setI(idx); pick(q.id, val); }}
+                                aria-pressed={pressed}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Más información (negrita) */}
+                        <button
+                          className="mt-4 w-full text-sm font-bold hover:opacity-80"
+                          onClick={() => setExpandedById(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
+                          aria-expanded={!!expandedById[q.id]}
+                          aria-controls={`more-info-${q.id}`}
+                        >
+                          Más información
+                        </button>
+
+                        {expandedById[q.id] && (
+                          <div id={`more-info-${q.id}`} className="mt-3 border border-white/15 rounded-xl p-3 bg-white/5">
+                            {q.queSeVota && (
+                              <>
+                                <h3 className="font-medium mb-2">Qué se vota</h3>
+                                <p className="text-sm opacity-90 whitespace-pre-line">{q.queSeVota}</p>
+                              </>
+                            )}
+
+                            {(q.aFavor?.length || q.enContra?.length) ? (
+                              <div className="mt-3 grid md:grid-cols-2 gap-3">
+                                {q.aFavor?.length ? (
+                                  <div>
+                                    <h4 className="font-semibold mb-1">Argumentos a favor</h4>
+                                    <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                                      {q.aFavor.map((t, idx2) => <li key={idx2}>{t}</li>)}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                                {q.enContra?.length ? (
+                                  <div>
+                                    <h4 className="font-semibold mb-1">Argumentos en contra</h4>
+                                    <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
+                                      {q.enContra.map((t, idx2) => <li key={idx2}>{t}</li>)}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
+
+                            {q.url && (
+                              <div className="mt-3 text-sm">
+                                <a className="underline hover:opacity-80" href={q.url} target="_blank" rel="noreferrer">
+                                  Fuente oficial
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-
-              {/* Más información (negrita) */}
-              <button
-                className="mt-3 w-full text-sm font-bold hover:opacity-80"
-                onClick={() =>
-                  setExpandedById(prev => ({ ...prev, [current.id]: !prev[current.id] }))
-                }
-                aria-expanded={!!expandedById[current.id]}
-                aria-controls={`more-info-${current.id}`}
-              >
-                Más información
-              </button>
-
-              {/* Área expandible con scroll propio */}
-              {expandedById[current.id] && (
-                <div
-                  id={`more-info-${current.id}`}
-                  className="mt-2 border border-white/15 rounded-xl p-3 bg-white/5 overflow-auto"
-                >
-                  {current.queSeVota && (
-                    <>
-                      <h3 className="font-medium mb-2">Qué se vota</h3>
-                      <p className="text-sm opacity-90 whitespace-pre-line">{current.queSeVota}</p>
-                    </>
-                  )}
-
-                  {(current.aFavor?.length || current.enContra?.length) ? (
-                    <div className="mt-3 grid md:grid-cols-2 gap-3">
-                      {current.aFavor?.length ? (
-                        <div>
-                          <h4 className="font-semibold mb-1">Argumentos a favor</h4>
-                          <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
-                            {current.aFavor.map((t, idx) => <li key={idx}>{t}</li>)}
-                          </ul>
-                        </div>
-                      ) : null}
-                      {current.enContra?.length ? (
-                        <div>
-                          <h4 className="font-semibold mb-1">Argumentos en contra</h4>
-                          <ul className="list-disc pl-4 text-sm opacity-90 space-y-2">
-                            {current.enContra.map((t, idx) => <li key={idx}>{t}</li>)}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  {current.url && (
-                    <div className="mt-3 text-sm">
-                      <a className="underline hover:opacity-80" href={current.url} target="_blank" rel="noreferrer">
-                        Fuente oficial
-                      </a>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* Botonera inferior (fuera del recuadro) */}
-          <div className="fixed left-1/2 -translate-x-1/2 bottom-10 w-[92%] max-w-3xl flex items-center justify-between z-10">
-            <button
-              onClick={back}
-              disabled={i === 0}
-              className={`px-4 py-2 rounded-lg transition ${
-                i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"
-              }`}
-            >
-              Volver atrás
-            </button>
-            <button onClick={showResults} className="btn-eu">Ver resultados</button>
-          </div>
+            {/* Botonera inferior fija */}
+            <div className="fixed left-1/2 -translate-x-1/2 bottom-10 w-[92%] max-w-3xl flex items-center justify-between z-10">
+              <button
+                onClick={back}
+                disabled={i === 0}
+                className={`px-4 py-2 rounded-lg transition ${
+                  i === 0 ? "bg-white/10 opacity-50 cursor-not-allowed" : "bg-white/10 hover:bg-white/15"
+                }`}
+              >
+                Volver atrás
+              </button>
+              <button onClick={showResults} className="btn-eu">Ver resultados</button>
+            </div>
 
-          {/* Espaciador para que nada quede tapado en móviles por los fijos */}
-          <div className="h-[240px]" />
+            <div className="h-[160px]" />
+          </div>
         </section>
       )}
     </main>
