@@ -61,7 +61,7 @@ export default function QuizPage() {
   const [done, setDone] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // para hover grisáceo
+  // hover para atenuar otras opciones
   const [hoverVal, setHoverVal] = useState<number | null>(null);
 
   const total = questions.length;
@@ -241,27 +241,17 @@ export default function QuizPage() {
                         const selectedVal = choices[current.id];
                         const isPressed = selectedVal === val;
 
-                        // Atenuar cuando:
-                        // - hay selección y este no es el elegido
-                        // - o NO hay selección pero hay hover y este no es el hover
+                        // Atenuar otras opciones si hay selección o hover
                         const dimBecauseSelected =
                           selectedVal !== undefined && !isPressed;
                         const dimBecauseHover =
                           selectedVal === undefined &&
                           hoverVal !== null &&
                           hoverVal !== val;
-
                         const dim = dimBecauseSelected || dimBecauseHover;
 
-                        // Colores: no seleccionado => pálido; seleccionado => fondo oscuro + texto blanco
-                        const basePale =
-                          color === "green"
-                            ? "bg-green-200/90 text-green-900"
-                            : color === "red"
-                            ? "bg-red-200/90 text-red-900"
-                            : "bg-gray-200/90 text-gray-900";
-
-                        const baseSolid =
+                        // Colores base (oscuro + blanco siempre para favor/contra; gris oscuro para abstención)
+                        const baseDefault =
                           color === "green"
                             ? "bg-green-700 text-white"
                             : color === "red"
@@ -274,7 +264,7 @@ export default function QuizPage() {
                             onMouseEnter={() => setHoverVal(val)}
                             onMouseLeave={() => setHoverVal(null)}
                             className={`px-4 py-3 rounded-xl text-sm md:text-base font-semibold border cursor-pointer transition
-                              ${isPressed ? baseSolid : basePale}
+                              ${baseDefault}
                               ${dim ? "opacity-45 grayscale" : ""}
                               ${isPressed ? "border-transparent shadow-inner" : "border-transparent"}
                             `}
@@ -287,13 +277,9 @@ export default function QuizPage() {
                       })}
                     </div>
 
-                    <div className="mt-5 flex items-center justify-between gap-3">
+                    {/* (se quita el texto de ayuda) */}
+                    <div className="mt-5">
                       <InfoDialog q={current} onOpenChange={setInfoOpen} />
-                      <div className="text-xs md:text-sm opacity-70">
-                        {choices[current.id] !== undefined
-                          ? "Podés modificar tu respuesta"
-                          : "Elegí una opción"}
-                      </div>
                     </div>
                   </div>
 
@@ -498,7 +484,7 @@ function InfoDialog({
               {q.aFavor?.length ? (
                 <div>
                   <div className="w-full flex justify-center mb-3">
-                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-200/90 text-green-900">
+                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-green-700 text-white">
                       Argumentos a favor
                     </span>
                   </div>
@@ -513,7 +499,7 @@ function InfoDialog({
               {q.enContra?.length ? (
                 <div>
                   <div className="w-full flex justify-center mb-3">
-                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-200/90 text-red-900">
+                    <span className="inline-block rounded-full px-3 py-1 text-sm font-semibold bg-red-700 text-white">
                       Argumentos en contra
                     </span>
                   </div>
