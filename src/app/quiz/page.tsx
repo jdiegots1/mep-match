@@ -60,6 +60,9 @@ export default function QuizPage() {
   const [expanded, setExpanded] = useState(false);
   const [mode, setMode] = useState<Mode>("coverage"); // selector de modo
 
+  // NUEVO: recordar desde qué pregunta se llegó a "Resultados"
+  const [returnIndex, setReturnIndex] = useState(0);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -78,7 +81,7 @@ export default function QuizPage() {
         vIdx[String(v.id)] = { id: String(v.id), url: v.url ?? null };
       });
 
-      // normaliza: usa voteId como id real del voto, y elige el enunciado disponible
+      // normaliza
       const normalized: Question[] = (qRaw as QuestionInput[])
         .map(x => {
           const idReal = String(x.voteId ?? x.id ?? "").trim();
@@ -103,7 +106,7 @@ export default function QuizPage() {
         })
         .filter(Boolean) as Question[];
 
-      // (Opcional) filtra preguntas cuyo id no esté en matrix para asegurar resultados
+      // (Opcional) filtra preguntas cuyo id no esté en matrix
       const normalizedFiltered = normalized.filter(q => !!(mat as Matrix)[q.id]);
 
       const picked = shuffle(normalizedFiltered).slice(0, 10);
@@ -112,14 +115,6 @@ export default function QuizPage() {
       setQuestions(picked);
       setMembers(m);
       setMatrix(mat);
-
-      console.log("[quiz] loaded", {
-        incoming: (qRaw as any[]).length,
-        normalized: normalized.length,
-        kept: picked.length,
-        members: (m as any[]).length,
-        votesInMatrix: Object.keys(mat || {}).length,
-      });
     })();
     return () => { alive = false; };
   }, []);
@@ -144,14 +139,23 @@ export default function QuizPage() {
       setI(nextIndex);
       setExpanded(false);
     } else {
+      // si se termina desde esta pregunta, recordamos a cuál volver
+      setReturnIndex(i);
       setDone(true);
     }
+  }
+
+  // NUEVO: función centralizada para abrir resultados desde la pregunta actual
+  function showResults() {
+    setReturnIndex(i);
+    setDone(true);
+    setExpanded(false);
   }
 
   function back() {
     if (done && total > 0) {
       setDone(false);
-      setI(total - 1);
+      setI(Math.min(Math.max(returnIndex, 0), total - 1)); // vuelve a la pregunta de origen
       setExpanded(false);
       return;
     }
@@ -174,12 +178,10 @@ export default function QuizPage() {
   const top = useMemo(() => {
     if (!done) return [];
     if (Object.keys(filteredChoices).length < 5) return [];
-    // NOTA: esta llamada asume que scoreMembers acepta un 3er argumento con opciones.
-    // Si tu scoreMembers no lo admite aún, dímelo y te paso el pequeño cambio en similarity.ts.
+    // Requiere que scoreMembers acepte el 3er parámetro de opciones
     return scoreMembers(filteredChoices, matrix, {
-      coveragePenalty: mode === "coverage", // "más realista": tiene en cuenta ausencias
+      coveragePenalty: mode === "coverage", // “Más realista”
       minOverlap: 5,
-      // abstentionSoft: true, // si quieres que empates con abstención cuenten un poco
     }).slice(0, 10);
   }, [done, filteredChoices, matrix, mode]);
 
@@ -452,7 +454,8 @@ export default function QuizPage() {
                   Volver atrás
                 </button>
 
-                <button onClick={() => setDone(true)} className="btn-eu">
+                {/* Usamos showResults() para recordar desde qué pregunta entramos */}
+                <button onClick={showResults} className="btn-eu">
                   Ver resultados
                 </button>
               </div>
