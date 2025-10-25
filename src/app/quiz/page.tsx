@@ -60,11 +60,9 @@ export default function QuizPage() {
 
   // ---- Embla + viewport ref para medir ancho
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  // callback para pasar a Embla y guardar la referencia de viewport
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
-    // con spacers, usamos start
-    align: "start",
+    align: "center",            // ⬅️ centrado real en TODAS las slides
     containScroll: "trimSnaps",
     inViewThreshold: 0.6,
     skipSnaps: false,
@@ -83,11 +81,10 @@ export default function QuizPage() {
   const [index, setIndex] = useState(0);
   const total = questions.length;
 
-  // ---- spacing dinámico para centrar 1ª y última
+  // ---- padding dinámico en track para centrar 1ª/última
   const [sidePad, setSidePad] = useState(0);
-  // Config de slide: misma que en clase w-[86vw] max-w-3xl (48rem = 768px)
-  const SLIDE_VW = 0.86;
-  const SLIDE_MAX_PX = 768; // 48rem
+  const SLIDE_VW = 0.86;      // coincide con w-[86vw]
+  const SLIDE_MAX_PX = 768;   // 48rem = max-w-3xl
 
   const recalcSidePad = useCallback(() => {
     const vp = viewportRef.current;
@@ -177,13 +174,11 @@ export default function QuizPage() {
       recalcSidePad();
       onSelect(emblaApi);
     });
-    // ir al inicio sin animación
     emblaApi.scrollTo(0, true);
-    // doble tick por si faltan cálculos de layout
     setTimeout(() => emblaApi.scrollTo(0, true), 0);
   }, [emblaApi, onSelect, recalcSidePad]);
 
-  // Re-centrar al tener slides
+  // Re-calcular padding y reInit cuando haya slides
   useEffect(() => {
     if (!emblaApi || total === 0) return;
     recalcSidePad();
@@ -320,7 +315,7 @@ export default function QuizPage() {
               ›
             </button>
 
-            {/* Viewport Embla (full-bleed). Sin paddings externos ni márgenes negativos. */}
+            {/* Viewport Embla (full-bleed) */}
             <div
               className="overflow-hidden"
               style={{
@@ -330,13 +325,11 @@ export default function QuizPage() {
               }}
               ref={setViewport}
             >
-              {/* Track con gap; añadimos spacers dinámicos */}
-              <div className="flex items-stretch gap-10 md:gap-16 py-4">
-                {/* Spacer izquierdo */}
-                <div
-                  aria-hidden
-                  style={{ flex: `0 0 ${sidePad}px` }}
-                />
+              {/* Track con gap y padding lateral dinámico */}
+              <div
+                className="flex items-stretch gap-10 md:gap-16 py-4"
+                style={{ paddingLeft: sidePad, paddingRight: sidePad }}
+              >
                 {questions.map((q, idx) => {
                   const active = idx === index;
                   const answered = choices[q.id] !== undefined;
@@ -390,11 +383,6 @@ export default function QuizPage() {
                     </div>
                   );
                 })}
-                {/* Spacer derecho */}
-                <div
-                  aria-hidden
-                  style={{ flex: `0 0 ${sidePad}px` }}
-                />
               </div>
             </div>
 
@@ -455,8 +443,7 @@ export default function QuizPage() {
                 <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
               )}
 
-              {/* Aquí mantén tus tarjetas de resultados como las tenías */}
-              <div className="transition-opacity duration-200 opacity-100"></div>
+              <div className="transition-opacity duration-200 opacity-100" />
 
               <div className="mt-6 flex items-center justify-between">
                 <button
