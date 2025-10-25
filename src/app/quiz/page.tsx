@@ -58,20 +58,18 @@ export default function QuizPage() {
   const [choices, setChoices] = useState<Record<string, number>>({});
   const [mode, setMode] = useState<Mode>("coverage");
 
-  // ---- Embla + refs
+  // Embla
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const trackRef = useRef<HTMLDivElement | null>(null);
-
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
-    align: "center", // centrado lógico
+    align: "center",          // centrado real para TODAS las slides
     containScroll: "trimSnaps",
     inViewThreshold: 0.6,
     skipSnaps: false,
     startIndex: 0,
   });
 
-  // “bridge” para guardar el viewport en un ref y pasarlo a Embla
+  // Pasar ref del viewport a Embla
   const setViewport = useCallback(
     (el: HTMLDivElement | null) => {
       viewportRef.current = el;
@@ -82,38 +80,6 @@ export default function QuizPage() {
 
   const [index, setIndex] = useState(0);
   const total = questions.length;
-
-  // ---- padding dinámico en track (compensando gap/2)
-  const [sidePad, setSidePad] = useState(0);
-  const SLIDE_VW = 0.86;    // w-[86vw]
-  const SLIDE_MAX_PX = 768; // max-w-3xl
-
-  const recalcSidePad = useCallback(() => {
-    const vp = viewportRef.current;
-    const track = trackRef.current;
-    if (!vp || !track) return;
-
-    // gap real en px (columnGap = rowGap = gap en nuestro flex)
-    const cs = getComputedStyle(track);
-    const gapPx =
-      parseFloat(cs.columnGap || "0") ||
-      parseFloat(cs.gap || "0") ||
-      0;
-
-    const vpW = vp.clientWidth || window.innerWidth;
-    const slideW = Math.min(vpW * SLIDE_VW, SLIDE_MAX_PX);
-
-    // padding ideal menos la mitad del gap para evitar el corrimiento visual
-    const pad = Math.max((vpW - slideW) / 2 - gapPx / 2, 0);
-    setSidePad(pad);
-  }, []);
-
-  useEffect(() => {
-    recalcSidePad();
-    const onResize = () => recalcSidePad();
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [recalcSidePad]);
 
   // UI / resultados
   const [entered, setEntered] = useState(false);
@@ -183,21 +149,10 @@ export default function QuizPage() {
   useEffect(() => {
     if (!emblaApi) return;
     emblaApi.on("select", () => onSelect(emblaApi));
-    emblaApi.on("reInit", () => {
-      recalcSidePad();
-      onSelect(emblaApi);
-    });
+    emblaApi.on("reInit", () => onSelect(emblaApi));
     emblaApi.scrollTo(0, true);
     setTimeout(() => emblaApi.scrollTo(0, true), 0);
-  }, [emblaApi, onSelect, recalcSidePad]);
-
-  // Re-calcular padding y reInit cuando haya slides
-  useEffect(() => {
-    if (!emblaApi || total === 0) return;
-    recalcSidePad();
-    emblaApi.reInit();
-    requestAnimationFrame(() => emblaApi.scrollTo(0, true));
-  }, [emblaApi, total, recalcSidePad]);
+  }, [emblaApi, onSelect]);
 
   // Navegación determinista
   const goTo = useCallback(
@@ -337,12 +292,9 @@ export default function QuizPage() {
               }}
               ref={setViewport}
             >
-              {/* Track con gap y padding lateral dinámico (compensado) */}
-              <div
-                ref={trackRef}
-                className="flex items-stretch gap-10 md:gap-16 py-4"
-                style={{ paddingLeft: sidePad, paddingRight: sidePad }}
-              >
+              {/* Track SIN gap. Usamos padding en cada slide y un -mx equivalente aquí. */}
+              {/* gap deseado: 2.5rem (40px) en móvil y 4rem (64px) en md+ */}
+              <div className="-mx-10 md:-mx-16 flex items-stretch py-4">
                 {questions.map((q, idx) => {
                   const active = idx === index;
                   const answered = choices[q.id] !== undefined;
@@ -350,7 +302,7 @@ export default function QuizPage() {
                   return (
                     <div
                       key={q.id}
-                      className={`flex-none w-[86vw] max-w-3xl select-none transition-all duration-300 ${
+                      className={`flex-none px-10 md:px-16 w-[86vw] max-w-3xl select-none transition-all duration-300 ${
                         active ? "opacity-100 scale-100" : "opacity-35 scale-[0.97]"
                       }`}
                       aria-hidden={!active}
