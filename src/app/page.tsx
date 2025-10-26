@@ -20,7 +20,7 @@ export default function Page() {
             width={500}
             height={500}
             priority
-            className="mx-auto w-24 h-24 sm:w-28 sm:h-28 object-contain"
+            className="mx-auto w-345 h-250 sm:w-28 sm:h-28 object-contain"
           />
         </div>
 
