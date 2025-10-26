@@ -24,24 +24,24 @@ export default function Page() {
         <h1
           className={`text-3xl sm:text-5xl font-extrabold tracking-tight ${
             mounted ? "fade-in fade-in-1" : "opacity-0"
-          }`}
+          } mb-6 sm:mb-8`}
         >
           ¿A qué <span className="text-[#ffcc00]">eurodiputado</span> me parezco?
         </h1>
 
-        {/* Separador animado */}
+        {/* Separador animado (más largo) */}
         <div
           aria-hidden
-          className={`mx-auto mt-4 h-[2px] rounded-full bg-white/40 transition-[width,opacity] duration-700 ease-out ${
-            mounted ? "w-40 sm:w-64 opacity-100" : "w-0 opacity-0"
+          className={`mx-auto h-[2px] rounded-full bg-white/40 transition-[width,opacity] duration-700 ease-out mb-6 sm:mb-8 ${
+            mounted ? "w-56 sm:w-80 md:w-[32rem] opacity-100" : "w-0 opacity-0"
           }`}
         />
 
         {/* Subtítulo */}
         <p
-          className={`mt-4 text-base sm:text-lg text-white/80 ${
+          className={`text-base sm:text-lg text-white/80 ${
             mounted ? "fade-in fade-in-2" : "opacity-0"
-          }`}
+          } mt-6 sm:mt-8`}
         >
           Responde a votaciones reales del Parlamento Europeo y descubre con quién
           coincides más. Datos abiertos de HowTheyVote.eu.
