@@ -505,7 +505,7 @@ export default function QuizPage() {
 
                   {/* Aviso anonimato */}
                   <p className="mt-2 text-[10px] leading-tight text-white/60 text-center">
-                    No guardamos tus respuestas; el cuestionario es anónimo.
+                    Tus respuestas no se guardan; son anónimas.
                   </p>
 
                   <div className="h-[140px]" />
@@ -950,7 +950,7 @@ export default function QuizPage() {
                   aria-disabled={answeredCount < minRequired}
                   title={answeredCount < minRequired ? `Responde ${remaining} más` : "Ver resultados"}
                 >
-                  {answeredCount < minRequired ? `Ver resultados (${remaining} más)` : "Ver resultados"}
+                  {answeredCount < minRequired ? `Ver resultados (${remaining})` : "Ver resultados"}
                 </button>
               </motion.div>
             ) : (
@@ -1144,8 +1144,8 @@ function DetailDialog({
   choices,
   matrix,
   mepName,
-  mepGroup,
-  mepCountry,
+  mepGroup,   // no lo usamos en el título, pero lo dejo por si lo quieres reutilizar
+  mepCountry, // idem
   mepImage,
 }: {
   open: boolean;
@@ -1157,7 +1157,7 @@ function DetailDialog({
   mepName: (id: string) => string;
   mepGroup: (id: string) => string;
   mepCountry: (id: string) => string;
-   mepImage: (id: string) => string | null;
+  mepImage: (id: string) => string | null;
 }) {
   if (!memberId) return null;
 
@@ -1168,6 +1168,8 @@ function DetailDialog({
       const myVote = choices[q.id];
       return { id: q.id, q: q.q, myVote, mepVote };
     });
+
+  const mepImg = mepImage(memberId);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -1180,7 +1182,7 @@ function DetailDialog({
             exit={{ opacity: 0 }}
           />
         </Dialog.Overlay>
-        {/* Centro real en móvil y desktop */}
+
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -1198,74 +1200,96 @@ function DetailDialog({
                 ✕
               </Dialog.Close>
 
-              {/* Título: móvil solo nombre; desktop completo */}
+              {/* Título: SOLO NOMBRE (móvil y desktop) */}
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
-                <span className="md:hidden">{mepName(memberId)}</span>
-                <span className="hidden md:inline">
-                  Comparativa de votos — {mepName(memberId)}{" "}
-                  <span className="opacity-70">({mepGroup(memberId)})</span>
-                  <div className="text-[12px] opacity-60 mt-0.5">{mepCountry(memberId)}</div>
-                </span>
+                {mepName(memberId)}
               </Dialog.Title>
-              <div className="h-4 md:hidden" />
+              <div className="h-2" />
 
-              {/* Móvil */}
-                <div className="md:hidden">
+              {/* ======= MÓVIL ======= */}
+              <div className="md:hidden">
+                {/* Cabecera: vacío / Tú / foto MEP */}
                 <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] px-2 pb-2 text-xs opacity-80 items-center">
-                    <div />
-                    <div className="text-center font-semibold">Tú</div>
-                    <div className="text-center">
-                    {(() => {
-                        const img = mepImage(memberId);
-                        return img ? (
-                        <img
-                            src={img}
-                            alt={mepName(memberId)}
-                            className="inline-block w-6 h-6 rounded-full object-cover ring-1 ring-white/40 align-middle"
-                            loading="lazy"
-                        />
-                        ) : (
-                        <span className="inline-block w-6 h-6 rounded-full bg-white/10 align-middle" />
-                        );
-                    })()}
-                    </div>
-                </div>
-                <div className="divide-y divide-white/10">
-                    {rows.map((r) => (
-                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_88px_88px] items-center py-2">
-                        <div className="px-2 text-xs leading-snug">{r.q}</div>
-                        <div className="px-2 flex items-center justify-center">
-                        <span className={`w-5 h-5 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
-                        </div>
-                        <div className="px-2 flex items-center justify-center">
-                        <span className={`w-5 h-5 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
-                        </div>
-                    </div>
-                    ))}
-                </div>
+                  <div />
+                  <div className="text-center font-semibold">Tú</div>
+                  <div className="text-center">
+                    {mepImg ? (
+                      <img
+                        src={mepImg}
+                        alt={mepName(memberId)}
+                        className="inline-block w-6 h-6 rounded-full object-cover ring-1 ring-white/40 align-middle"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="inline-block w-6 h-6 rounded-full bg-white/10 align-middle" />
+                    )}
+                  </div>
                 </div>
 
-              {/* Desktop */}
-              <div className="hidden md:block">
-                <div className="rounded-xl border border-white/15 overflow-hidden">
-                  <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
-                    <div className="px-3 py-2 font-semibold">Pregunta</div>
-                    <div className="px-3 py-2 font-semibold text-center">Tú</div>
-                    <div className="px-3 py-2 font-semibold text-center">Diputado/a</div>
-                  </div>
-                  <div className="divide-y divide-white/10">
-                    {rows.map((r) => (
-                      <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_110px_110px] items-center">
-                        <div className="px-3 py-2 text-sm">{r.q}</div>
-                        <div className="px-3 py-2 flex items-center justify-center">
-                          <span className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
-                        </div>
-                        <div className="px-3 py-2 flex items-center justify-center">
-                          <span className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
-                        </div>
+                {/* Filas sin recuadro, con separadores */}
+                <div className="divide-y divide-white/10">
+                  {rows.map((r) => (
+                    <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_88px_88px] items-center py-2">
+                      <div className="px-2 text-xs leading-snug">{r.q}</div>
+                      <div className="px-2 flex items-center justify-center">
+                        <span
+                          className={`w-5 h-5 rounded-full ${colorFromVal(r.myVote)}`}
+                          title={labelFromVal(r.myVote)}
+                        />
                       </div>
-                    ))}
+                      <div className="px-2 flex items-center justify-center">
+                        <span
+                          className={`w-5 h-5 rounded-full ${colorFromVal(r.mepVote)}`}
+                          title={labelFromVal(r.mepVote)}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ======= DESKTOP ======= */}
+              <div className="hidden md:block">
+                {/* SIN recuadro: solo cabecera + filas con separadores */}
+                {/* Cabecera: vacío / Tú / foto MEP */}
+                <div className="grid grid-cols-[minmax(0,1fr)_120px_120px] gap-0 px-1 pb-2 text-sm opacity-80 items-center">
+                  <div />
+                  <div className="text-center font-semibold">Tú</div>
+                  <div className="text-center">
+                    {mepImg ? (
+                      <img
+                        src={mepImg}
+                        alt={mepName(memberId)}
+                        className="inline-block w-7 h-7 rounded-full object-cover ring-1 ring-white/40 align-middle"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="inline-block w-7 h-7 rounded-full bg-white/10 align-middle" />
+                    )}
                   </div>
+                </div>
+
+                <div className="divide-y divide-white/10">
+                  {rows.map((r) => (
+                    <div
+                      key={r.id}
+                      className="grid grid-cols-[minmax(0,1fr)_120px_120px] items-center"
+                    >
+                      <div className="px-3 py-2 text-sm">{r.q}</div>
+                      <div className="px-3 py-2 flex items-center justify-center">
+                        <span
+                          className={`w-6 h-6 rounded-full ${colorFromVal(r.myVote)}`}
+                          title={labelFromVal(r.myVote)}
+                        />
+                      </div>
+                      <div className="px-3 py-2 flex items-center justify-center">
+                        <span
+                          className={`w-6 h-6 rounded-full ${colorFromVal(r.mepVote)}`}
+                          title={labelFromVal(r.mepVote)}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1280,3 +1304,4 @@ function DetailDialog({
     </Dialog.Root>
   );
 }
+

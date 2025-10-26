@@ -24,8 +24,26 @@ export default function RootLayout({
       >
         {children}
         <footer className="text-xs/relaxed text-white/70 p-4 text-center">
-          Datos de votación © HowTheyVote.eu — ODbL/DBCL para la base y contenidos; fotos y resúmenes quedan excluidos.
-        </footer>
+        Los datos fueron extraídos de{" "}
+        <a
+          href="https://howtheyvote.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          <strong>HowTheyVote.eu</strong>
+        </a>{" "}
+        y del{" "}
+        <a
+          href="https://data.europarl.europa.eu"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          <strong>Portal de Datos Abiertos del Parlamento Europeo</strong>
+        </a>
+        .
+      </footer>
       </body>
     </html>
   );

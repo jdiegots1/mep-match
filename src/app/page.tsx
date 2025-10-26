@@ -1,6 +1,8 @@
 "use client";
+
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 export default function Page() {
   const router = useRouter();
@@ -11,25 +13,28 @@ export default function Page() {
   return (
     <main className="min-h-dvh flex items-center justify-center bg-eu">
       <div className="text-center max-w-2xl px-6">
-        {/* Isotipo / estrella */}
+        {/* Logo */}
         <div className={`mx-auto mb-8 sm:mb-10 ${mounted ? "fade-in" : "opacity-0"}`}>
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-4 border-[#ffcc00] mx-auto grid place-items-center shadow-lg">
-            <span className="text-[#ffcc00] text-2xl sm:text-3xl" aria-hidden>
-              ★
-            </span>
-          </div>
+          <Image
+            src="/logo.png"
+            alt="Logo del proyecto"
+            width={128}
+            height={128}
+            priority
+            className="mx-auto w-24 h-24 sm:w-28 sm:h-28 object-contain"
+          />
         </div>
 
-        {/* Título */}
+        {/* Título (pregunta sencilla) */}
         <h1
           className={`text-3xl sm:text-5xl font-extrabold tracking-tight ${
             mounted ? "fade-in fade-in-1" : "opacity-0"
           } mb-8 sm:mb-10`}
         >
-          ¿A qué <span className="text-[#ffcc00]">eurodiputado</span> me parezco?
+          ¿Con qué <span className="text-[#ffcc00]">eurodiputados</span> te alineas más?
         </h1>
 
-        {/* Separador animado (más largo) */}
+        {/* Separador animado */}
         <div
           aria-hidden
           className={`mx-auto h-[2px] rounded-full bg-white/40 transition-[width,opacity] duration-700 ease-out mb-8 sm:mb-12 ${
@@ -44,7 +49,7 @@ export default function Page() {
           } mt-8 sm:mt-10`}
         >
           Responde a votaciones reales del Parlamento Europeo y descubre con quién
-          coincides más. Datos abiertos de HowTheyVote.eu.
+          coincides más.
         </p>
 
         {/* CTA */}
