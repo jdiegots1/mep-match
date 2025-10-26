@@ -75,6 +75,10 @@ export default function QuizPage() {
   const [done, setDone] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
+  // Carga real
+  const [loading, setLoading] = useState(true);
+  const [progress, setProgress] = useState(0); // 0..1
+
   // hover para atenuar otras opciones
   const [hoverVal, setHoverVal] = useState<number | null>(null);
 
@@ -89,54 +93,79 @@ export default function QuizPage() {
   const total = questions.length;
   const current = questions[index];
 
-  // Cargar data
+  // Cargar data con progreso
   useEffect(() => {
     let alive = true;
+
+    const smoothTo = (target: number) => {
+      // transición suave hacia el target (sin intervalos extraños)
+      setProgress((prev) => (target < prev ? prev : target));
+    };
+
     (async () => {
-      const [qRaw, m, mat] = await Promise.all([
-        fetch("/data/questions.es.json").then((r) => r.json()).catch(() => []),
-        fetch("/data/members.enriched.json").then((r) => r.json()).catch(() => []),
-        fetch("/data/matrix.json").then((r) => r.json()).catch(() => ({})),
-      ]);
-      if (!alive) return;
+      try {
+        // 0% → 10% para feedback inmediato
+        smoothTo(0.1);
 
-      const normalized: Question[] = (qRaw as QuestionInput[])
-        .map((x) => {
-          const idReal = String(x.voteId ?? x.id ?? "").trim();
-          const qText = (x.question ?? x.q ?? x.title ?? "").toString().trim();
-          if (!idReal || !qText) return null;
-          const aFav = Array.isArray(x.aFavor)
-            ? x.aFavor
-            : typeof x.aFavor === "string" && x.aFavor.trim()
-            ? [x.aFavor]
-            : [];
-          const enC = Array.isArray(x.enContra)
-            ? x.enContra
-            : typeof x.enContra === "string" && x.enContra.trim()
-            ? [x.enContra]
-            : [];
-          return {
-            id: idReal,
-            q: qText,
-            queSeVota: x.queSeVota,
-            aFavor: aFav,
-            enContra: enC,
-            url: x.url ?? null,
-          } as Question;
-        })
-        .filter(Boolean) as Question[];
+        // Preguntas (33%)
+        const qRaw: QuestionInput[] =
+          (await fetch("/data/questions.es.json").then((r) => r.json()).catch(() => [])) ?? [];
+        alive && smoothTo(0.33);
 
-      const filtered = normalized.filter((q) => !!(mat as Matrix)[q.id]);
-      const picked = shuffle(filtered).slice(0, 10);
+        // Miembros (66%)
+        const m: Member[] =
+          (await fetch("/data/members.enriched.json").then((r) => r.json()).catch(() => [])) ?? [];
+        alive && smoothTo(0.66);
 
-      setQuestions(picked);
-      setMembers(m);
-      setMatrix(mat);
-      setChoices({});
-      setIndex(0);
-      setDone(false);
+        // Matriz (100%)
+        const mat: Matrix =
+          (await fetch("/data/matrix.json").then((r) => r.json()).catch(() => ({}))) ?? {};
+        alive && smoothTo(1);
 
-      requestAnimationFrame(() => setEntered(true));
+        if (!alive) return;
+
+        const normalized: Question[] = (qRaw as QuestionInput[])
+          .map((x) => {
+            const idReal = String(x.voteId ?? x.id ?? "").trim();
+            const qText = (x.question ?? x.q ?? x.title ?? "").toString().trim();
+            if (!idReal || !qText) return null;
+            const aFav = Array.isArray(x.aFavor)
+              ? x.aFavor
+              : typeof x.aFavor === "string" && x.aFavor.trim()
+              ? [x.aFavor]
+              : [];
+            const enC = Array.isArray(x.enContra)
+              ? x.enContra
+              : typeof x.enContra === "string" && x.enContra.trim()
+              ? [x.enContra]
+              : [];
+            return {
+              id: idReal,
+              q: qText,
+              queSeVota: x.queSeVota,
+              aFavor: aFav,
+              enContra: enC,
+              url: x.url ?? null,
+            } as Question;
+          })
+          .filter(Boolean) as Question[];
+
+        // Solo preguntas presentes en la matriz
+        const filtered = normalized.filter((q) => !!(mat as Matrix)[q.id]);
+        const picked = shuffle(filtered).slice(0, 10);
+
+        setQuestions(picked);
+        setMembers(m);
+        setMatrix(mat);
+        setChoices({});
+        setIndex(0);
+        setDone(false);
+
+        requestAnimationFrame(() => setEntered(true));
+      } finally {
+        // pequeña espera para que la barra llegue visualmente al 100%
+        setTimeout(() => alive && setLoading(false), 150);
+      }
     })();
 
     return () => {
@@ -155,7 +184,7 @@ export default function QuizPage() {
     setChoices((prev) => ({ ...prev, [qId]: val }));
     setHoverVal(null);
     if (index < total - 1) setIndex((i) => i + 1);
-    else setDone(true);
+    else setDone(true); // ya respondió todas (>=5 seguro porque total=10)
   };
 
   const filteredChoices = useMemo(() => {
@@ -166,13 +195,20 @@ export default function QuizPage() {
     return out;
   }, [choices, matrix]);
 
+  const answeredCount = useMemo(
+    () => Object.keys(filteredChoices).length,
+    [filteredChoices]
+  );
+  const minRequired = 5;
+  const remaining = Math.max(0, minRequired - answeredCount);
+
   const computeScores = useMemo(() => {
-    if (Object.keys(filteredChoices).length < 5) return [];
+    if (answeredCount < minRequired) return [];
     return scoreMembers(filteredChoices, matrix, {
       coveragePenalty: mode === "coverage",
-      minOverlap: 5,
+      minOverlap: minRequired,
     }); // desc
-  }, [filteredChoices, matrix, mode]);
+  }, [filteredChoices, matrix, mode, answeredCount]);
 
   const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
@@ -205,7 +241,7 @@ export default function QuizPage() {
     return list;
   }, [allMemberIds, scoreMap, members]);
 
-  // Posición global comprimida (empates por % con 2 decimales)
+  // Posición global comprimida
   const globalPosMap = useMemo(() => {
     let lastPct: number | null = null;
     let rank = 0;
@@ -221,7 +257,7 @@ export default function QuizPage() {
     return m;
   }, [globalBase]);
 
-  // Posición por país (también comprimida)
+  // Posición por país
   const countryPosMap = useMemo(() => {
     const map = new Map<string, number>();
     const byCountry = new Map<string, typeof globalBase>();
@@ -245,7 +281,7 @@ export default function QuizPage() {
     return map;
   }, [globalBase]);
 
-  // Ranking final (posición global real; si hay búsqueda, añade posición por país)
+  // Ranking final
   const rankedAll = useMemo(() => {
     if (!done) return [];
 
@@ -320,10 +356,20 @@ export default function QuizPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  if (!total) {
+  /* ========== Loading con barra real ========== */
+  if (loading || !total) {
+    const pct = Math.round(progress * 100);
     return (
       <main className="min-h-dvh grid place-items-center p-6">
-        <div className="text-center opacity-90">Cargando preguntas…</div>
+        <div className="w-full max-w-md text-center">
+          <div className="mb-3 text-sm opacity-90">Cargando preguntas… {pct}%</div>
+          <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+            <div
+              className="h-full bg-[var(--eu-yellow)] transition-[width] duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
       </main>
     );
   }
@@ -357,7 +403,7 @@ export default function QuizPage() {
       <header className="max-w-5xl w-full mx-auto mb-2 flex items-center justify-between">
         <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
         <div className="text-sm font-medium">
-          {Object.keys(choices).length}/{total}
+          {answeredCount}/{total}
         </div>
       </header>
 
@@ -392,7 +438,7 @@ export default function QuizPage() {
                   <div className="h-full flex items-end justify-center">
                     {/* móvil más pequeño */}
                     <h2 className="text-base sm:text-lg md:text-3xl font-semibold leading-snug text-center px-2">
-                        {current.q}
+                      {current.q}
                     </h2>
                   </div>
                 </div>
@@ -490,326 +536,324 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {computeScores.length < 5 ? (
-                <p className="text-center opacity-80">Responde al menos 5 preguntas para calcular afinidad.</p>
-              ) : (
-                <>
-                  {/* ====== MÓVIL (md:hidden) ====== */}
-                  <div className="md:hidden px-2">
-                    {(() => {
-                      const top3 = top.slice(0, 3);
+              {/* Como ya no se puede llegar aquí con < 5 respuestas, no mostramos mensaje de “min 5” */}
 
-                      const WinnerMobile = ({ id, p }: { id: string; p: number }) => {
-                        const img = mepImage(id);
-                        return (
-                          <div className="w-full rounded-2xl border border-white/20 bg-white/5 p-4 mb-4">
-                            <span className="text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-0.5 rounded-md font-semibold inline-block mb-2">
-                              Tu mejor coincidencia
+              <>
+                {/* ====== MÓVIL (md:hidden) ====== */}
+                <div className="md:hidden px-2">
+                  {(() => {
+                    const top3 = top.slice(0, 3);
+
+                    const WinnerMobile = ({ id, p }: { id: string; p: number }) => {
+                      const img = mepImage(id);
+                      return (
+                        <div className="w-full rounded-2xl border border-white/20 bg-white/5 p-4 mb-4">
+                          <span className="text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-0.5 rounded-md font-semibold inline-block mb-2">
+                            Tu mejor coincidencia
+                          </span>
+                          <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                              {img ? (
+                                <img
+                                  src={img}
+                                  alt={mepName(id)}
+                                  className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30 shrink-0"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-14 h-14 rounded-full bg-white/10 grid place-items-center">👤</div>
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <div className="text-xl font-bold leading-tight break-words">{mepName(id)}</div>
+                                <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
+                                <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <div className="text-2xl font-black leading-none">{p.toFixed(2)}%</div>
+                                <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
+                              </div>
+                            </div>
+                            <div>
+                              <span
+                                onClick={() => setDetailFor(id)}
+                                className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
+                              >
+                                Mira sus votos
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    const SmallMobile = ({ id, p, place }: { id: string; p: number; place: number }) => {
+                      const img = mepImage(id);
+                      return (
+                        <div className="w-full rounded-2xl border border-white/15 bg-white/5 p-3 flex items-center gap-3 mb-3">
+                          <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-[11px]">
+                            {place}
+                          </div>
+                          {img ? (
+                            <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover shrink-0" loading="lazy" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-semibold leading-tight break-words">{mepName(id)}</div>
+                            <div className="text-xs opacity-80 leading-tight break-words">{mepGroup(id)}</div>
+                            <div className="text-[11px] opacity-70 leading-tight break-words">{mepCountry(id)}</div>
+                            <span className="mt-2 inline-flex">
+                              <span
+                                onClick={() => setDetailFor(id)}
+                                className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
+                              >
+                                Mira sus votos
+                              </span>
                             </span>
-                            <div className="flex flex-col gap-3">
-                              <div className="flex items-center gap-3">
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-lg font-extrabold leading-none">{p.toFixed(2)}%</div>
+                            <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
+                          </div>
+                        </div>
+                      );
+                    };
+
+                    return (
+                      <>
+                        {top3[0] && <WinnerMobile id={top3[0].memberId} p={top3[0].affinity * 100} />}
+                        {top3[1] && <SmallMobile place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
+                        {top3[2] && <SmallMobile place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* ====== DESKTOP (hidden md:block) ====== */}
+                <div className="hidden md:block">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={mode}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.22 }}
+                      className="flex flex-col items-center justify-center px-2"
+                    >
+                      {(() => {
+                        const top3 = top.slice(0, 3);
+
+                        const GhostButton = (props: React.HTMLAttributes<HTMLSpanElement>) => (
+                          <span
+                            {...props}
+                            className={`inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer ${props.className ?? ""}`}
+                          />
+                        );
+
+                        const WinnerCard = ({ id, p }: { id: string; p: number }) => {
+                          const img = mepImage(id);
+                          return (
+                            <div className="w-full max-w-3xl relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-6 md:p-8 mb-6">
+                              <span className="absolute top-4 left-4 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2.5 py-1 rounded-md font-semibold">
+                                Tu mejor coincidencia
+                              </span>
+                              <div className="flex items-center gap-5 md:gap-6">
                                 {img ? (
                                   <img
                                     src={img}
                                     alt={mepName(id)}
-                                    className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30 shrink-0"
+                                    className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover ring-2 ring-white/40"
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <div className="w-14 h-14 rounded-full bg-white/10 grid place-items-center">👤</div>
-                                )}
-                                <div className="min-w-0 flex-1">
-                                  <div className="text-xl font-bold leading-tight break-words">{mepName(id)}</div>
-                                  <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
-                                  <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                  <div className="text-2xl font-black leading-none">{p.toFixed(2)}%</div>
-                                  <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
-                                </div>
-                              </div>
-                              <div>
-                                <span
-                                  onClick={() => setDetailFor(id)}
-                                  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
-                                >
-                                  Mira sus votos
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      };
-
-                      const SmallMobile = ({ id, p, place }: { id: string; p: number; place: number }) => {
-                        const img = mepImage(id);
-                        return (
-                          <div className="w-full rounded-2xl border border-white/15 bg-white/5 p-3 flex items-center gap-3 mb-3">
-                            <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-[11px]">
-                              {place}
-                            </div>
-                            {img ? (
-                              <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover shrink-0" loading="lazy" />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="font-semibold leading-tight break-words">{mepName(id)}</div>
-                              <div className="text-xs opacity-80 leading-tight break-words">{mepGroup(id)}</div>
-                              <div className="text-[11px] opacity-70 leading-tight break-words">{mepCountry(id)}</div>
-                              <span className="mt-2 inline-flex">
-                                <span
-                                  onClick={() => setDetailFor(id)}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
-                                >
-                                  Mira sus votos
-                                </span>
-                              </span>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-lg font-extrabold leading-none">{p.toFixed(2)}%</div>
-                              <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
-                            </div>
-                          </div>
-                        );
-                      };
-
-                      return (
-                        <>
-                          {top3[0] && <WinnerMobile id={top3[0].memberId} p={top3[0].affinity * 100} />}
-                          {top3[1] && <SmallMobile place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
-                          {top3[2] && <SmallMobile place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
-                        </>
-                      );
-                    })()}
-                  </div>
-
-                  {/* ====== DESKTOP (hidden md:block) ====== */}
-                  <div className="hidden md:block">
-                    <AnimatePresence mode="wait">
-                      <motion.div
-                        key={mode}
-                        initial={{ opacity: 0, x: 16 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -16 }}
-                        transition={{ duration: 0.22 }}
-                        className="flex flex-col items-center justify-center px-2"
-                      >
-                        {(() => {
-                          const top3 = top.slice(0, 3);
-
-                          const GhostButton = (props: React.HTMLAttributes<HTMLSpanElement>) => (
-                            <span
-                              {...props}
-                              className={`inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer ${props.className ?? ""}`}
-                            />
-                          );
-
-                          const WinnerCard = ({ id, p }: { id: string; p: number }) => {
-                            const img = mepImage(id);
-                            return (
-                              <div className="w-full max-w-3xl relative overflow-hidden rounded-3xl border border-white/20 bg-gradient-to-br from-[#003399]/50 to-[#001a66]/50 p-6 md:p-8 mb-6">
-                                <span className="absolute top-4 left-4 text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2.5 py-1 rounded-md font-semibold">
-                                  Tu mejor coincidencia
-                                </span>
-                                <div className="flex items-center gap-5 md:gap-6">
-                                  {img ? (
-                                    <img
-                                      src={img}
-                                      alt={mepName(id)}
-                                      className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover ring-2 ring-white/40"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-4xl">👤</div>
-                                  )}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-2xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
-                                    <div className="text-sm md:text-base opacity-80 truncate">{mepGroup(id)}</div>
-                                    <div className="text-xs md:text-sm opacity-70 truncate">{mepCountry(id)}</div>
-                                    <GhostButton onClick={() => setDetailFor(id)} className="mt-3">
-                                      Mira sus votos
-                                    </GhostButton>
-                                  </div>
-                                  <div className="text-right">
-                                    <div className="text-4xl md:text-6xl font-black leading-none">{p.toFixed(2)}%</div>
-                                    <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          };
-
-                          const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
-                            const img = mepImage(id);
-                            return (
-                              <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-white/5 p-4 md:p-5 flex items-center gap-4 mx-auto">
-                                <div className="w-7 h-7 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
-                                  {place}
-                                </div>
-                                {img ? (
-                                  <img src={img} alt={mepName(id)} className="w-12 h-12 rounded-full object-cover" loading="lazy" />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center">👤</div>
+                                  <div className="w-24 h-24 md:w-28 md:h-28 rounded-full bg-white/10 grid place-items-center text-4xl">👤</div>
                                 )}
                                 <div className="flex-1 min-w-0">
-                                  <div className="font-semibold truncate">{mepName(id)}</div>
-                                  <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
-                                  <div className="text-[11px] opacity-60 truncate">{mepCountry(id)}</div>
-                                  <span className="mt-2 block">
-                                    <span
-                                      onClick={() => setDetailFor(id)}
-                                      className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
-                                    >
-                                      Mira sus votos
-                                    </span>
-                                  </span>
+                                  <div className="text-2xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
+                                  <div className="text-sm md:text-base opacity-80 truncate">{mepGroup(id)}</div>
+                                  <div className="text-xs md:text-sm opacity-70 truncate">{mepCountry(id)}</div>
+                                  <GhostButton onClick={() => setDetailFor(id)} className="mt-3">
+                                    Mira sus votos
+                                  </GhostButton>
                                 </div>
                                 <div className="text-right">
-                                  <div className="text-2xl font-extrabold leading-none">{p.toFixed(2)}%</div>
-                                  <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
+                                  <div className="text-4xl md:text-6xl font-black leading-none">{p.toFixed(2)}%</div>
+                                  <div className="text-[10px] uppercase tracking-wider opacity-70 mt-1">afinidad</div>
                                 </div>
                               </div>
-                            );
-                          };
-
-                          return (
-                            <>
-                              {top3[0] && <WinnerCard id={top3[0].memberId} p={top3[0].affinity * 100} />}
-                              <div className="grid md:grid-cols-2 gap-4 w-full place-items-center">
-                                {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
-                                {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
-                              </div>
-                            </>
+                            </div>
                           );
-                        })()}
-                      </motion.div>
-                    </AnimatePresence>
-                  </div>
+                        };
 
-                  {/* CTA */}
-                  <div className="text-center mt-8 md:mt-10">
-                    <span
-                      onClick={smoothScrollToRanking}
-                      className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
-                      role="button"
-                    >
-                      Mira tus coincidencias con todos los eurodiputados
-                    </span>
-                  </div>
+                        const SmallCard = ({ id, p, place }: { id: string; p: number; place: number }) => {
+                          const img = mepImage(id);
+                          return (
+                            <div className="w-full max-w-2xl rounded-2xl border border-white/15 bg-white/5 p-4 md:p-5 flex items-center gap-4 mx-auto">
+                              <div className="w-7 h-7 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-xs">
+                                {place}
+                              </div>
+                              {img ? (
+                                <img src={img} alt={mepName(id)} className="w-12 h-12 rounded-full object-cover" loading="lazy" />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-white/10 grid place-items-center">👤</div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="font-semibold truncate">{mepName(id)}</div>
+                                <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
+                                <div className="text-[11px] opacity-60 truncate">{mepCountry(id)}</div>
+                                <span className="mt-2 block">
+                                  <span
+                                    onClick={() => setDetailFor(id)}
+                                    className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
+                                  >
+                                    Mira sus votos
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-extrabold leading-none">{p.toFixed(2)}%</div>
+                                <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
+                              </div>
+                            </div>
+                          );
+                        };
 
-                  {/* Ranking */}
-                  <div ref={rankingRef} className="mt-20 md:mt-24 px-2 scroll-mt-24">
-                    <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Buscar por nombre, grupo o país…"
-                      className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
-                    />
+                        return (
+                          <>
+                            {top3[0] && <WinnerCard id={top3[0].memberId} p={top3[0].affinity * 100} />}
+                            <div className="grid md:grid-cols-2 gap-4 w-full place-items-center">
+                              {top3[1] && <SmallCard place={2} id={top3[1].memberId} p={top3[1].affinity * 100} />}
+                              {top3[2] && <SmallCard place={3} id={top3[2].memberId} p={top3[2].affinity * 100} />}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
 
-                    {/* Lista */}
-                    <div>
-                      <AnimatePresence initial={false}>
-                        {rankedAll.slice(0, showCount).map((r) => (
-                          <motion.div
-                            key={r.memberId}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.18 }}
-                            className="
+                {/* CTA */}
+                <div className="text-center mt-8 md:mt-10">
+                  <span
+                    onClick={smoothScrollToRanking}
+                    className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
+                    role="button"
+                  >
+                    Mira tus coincidencias con todos los eurodiputados
+                  </span>
+                </div>
+
+                {/* Ranking */}
+                <div ref={rankingRef} className="mt-20 md:mt-24 px-2 scroll-mt-24">
+                  <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar por nombre, grupo o país…"
+                    className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
+                  />
+
+                  {/* Lista */}
+                  <div>
+                    <AnimatePresence initial={false}>
+                      {rankedAll.slice(0, showCount).map((r) => (
+                        <motion.div
+                          key={r.memberId}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.18 }}
+                          className="
                               border-b border-white/10
                               px-2 sm:px-3 py-2
                               flex flex-col sm:flex-row sm:items-center sm:gap-3
                             "
-                          >
-                            {/* Cabecera del ítem en móvil (posición + % a la derecha) */}
-                            <div className="flex items-center justify-between sm:hidden mb-1">
-                              <div className="inline-flex items-center gap-2">
-                                <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-md bg-white/10 text-xs font-semibold">
-                                  {r.showPos ? r.globalPos : ""}
-                                </span>
-                                {Boolean(search.trim()) && r.countryPos ? (
-                                  <span className="text-[11px] opacity-70">#{r.countryPos} país</span>
-                                ) : null}
-                              </div>
-                              <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
-                            </div>
-
-                            {/* DESKTOP: Columna de posición a la izquierda (con empates) */}
-                            <div className="hidden md:flex w-20 items-center justify-center">
-                              <div className="w-8 text-center font-semibold">
+                        >
+                          {/* Cabecera del ítem en móvil */}
+                          <div className="flex items-center justify-between sm:hidden mb-1">
+                            <div className="inline-flex items-center gap-2">
+                              <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-md bg-white/10 text-xs font-semibold">
                                 {r.showPos ? r.globalPos : ""}
-                              </div>
+                              </span>
                               {Boolean(search.trim()) && r.countryPos ? (
-                                <span className="text-xs opacity-70 ml-1">#{r.countryPos} país</span>
+                                <span className="text-[11px] opacity-70">#{r.countryPos} país</span>
                               ) : null}
                             </div>
+                            <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
+                          </div>
 
-                            {/* Foto + texto */}
-                            <div className="flex items-start gap-3 w-full">
-                              {r.image ? (
-                                <img
-                                  src={r.image}
-                                  alt={r.name}
-                                  className="w-10 h-10 rounded-full object-cover shrink-0"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
-                              )}
+                          {/* DESKTOP: Posición a la izquierda */}
+                          <div className="hidden md:flex w-20 items-center justify-center">
+                            <div className="w-8 text-center font-semibold">
+                              {r.showPos ? r.globalPos : ""}
+                            </div>
+                            {Boolean(search.trim()) && r.countryPos ? (
+                              <span className="text-xs opacity-70 ml-1">#{r.countryPos} país</span>
+                            ) : null}
+                          </div>
 
-                              <div className="min-w-0 flex-1">
-                                <div className="font-medium leading-tight break-words sm:truncate">{r.name}</div>
-                                <div className="text-xs opacity-80 leading-tight break-words sm:truncate">{r.group}</div>
-                                <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
-                              </div>
+                          {/* Foto + texto */}
+                          <div className="flex items-start gap-3 w-full">
+                            {r.image ? (
+                              <img
+                                src={r.image}
+                                alt={r.name}
+                                className="w-10 h-10 rounded-full object-cover shrink-0"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
+                            )}
 
-                              {/* DERECHA (solo escritorio): pegado al borde derecho */}
-                              <div className="hidden md:flex items-center gap-8 shrink-0 ml-auto sm:-mr-3 md:-mr-6 lg:-mr-10 xl:-mr-14">
-                                <div className="text-right font-mono w-36 lg:w-48 xl:w-56">{r.pct.toFixed(2)}%</div>
-                                <span
-                                  onClick={() => setDetailFor(r.memberId)}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
-                                  role="button"
-                                >
-                                  Mira sus votos
-                                </span>
-                              </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium leading-tight break-words sm:truncate">{r.name}</div>
+                              <div className="text-xs opacity-80 leading-tight break-words sm:truncate">{r.group}</div>
+                              <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
                             </div>
 
-                            {/* CTA en móvil debajo */}
-                            <div className="sm:hidden mt-2">
+                            {/* DERECHA (solo escritorio) */}
+                            <div className="hidden md:flex items-center gap-8 shrink-0 ml-auto sm:-mr-3 md:-mr-6 lg:-mr-10 xl:-mr-14">
+                              <div className="text-right font-mono w-36 lg:w-48 xl:w-56">{r.pct.toFixed(2)}%</div>
                               <span
                                 onClick={() => setDetailFor(r.memberId)}
-                                className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
+                                className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
                                 role="button"
                               >
                                 Mira sus votos
                               </span>
                             </div>
-                          </motion.div>
-                        ))}
-                      </AnimatePresence>
-                    </div>
+                          </div>
 
-                    {/* Mostrar más */}
-                    {rankedAll.length > showCount && (
-                      <div className="text-center mt-4">
-                        <span
-                          onClick={() => setShowCount((c) => c + 10)}
-                          className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
-                          role="button"
-                          aria-label="Mostrar más resultados"
-                        >
-                          Mostrar más
-                        </span>
-                      </div>
-                    )}
+                          {/* CTA en móvil debajo */}
+                          <div className="sm:hidden mt-2">
+                            <span
+                              onClick={() => setDetailFor(r.memberId)}
+                              className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
+                              role="button"
+                            >
+                              Mira sus votos
+                            </span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
-                </>
-              )}
+
+                  {/* Mostrar más */}
+                  {rankedAll.length > showCount && (
+                    <div className="text-center mt-4">
+                      <span
+                        onClick={() => setShowCount((c) => c + 10)}
+                        className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
+                        role="button"
+                        aria-label="Mostrar más resultados"
+                      >
+                        Mostrar más
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </>
             </div>
           </motion.section>
         )}
@@ -845,14 +889,20 @@ export default function QuizPage() {
                 >
                   Volver atrás
                 </button>
+
+                {/* Ver resultados: bloqueado si <5 */}
                 <button
-                  onClick={() => setDone(true)}
-                  className={`px-4 py-2 rounded-lg bg-[var(--eu-yellow)] text-black font-semibold ${
-                    done ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+                  onClick={() => answeredCount >= minRequired && setDone(true)}
+                  className={`px-4 py-2 rounded-lg font-semibold ${
+                    answeredCount >= minRequired
+                      ? "bg-[var(--eu-yellow)] text-black hover:brightness-95 cursor-pointer"
+                      : "bg-white/10 text-white/70 cursor-not-allowed"
                   }`}
-                  disabled={done}
+                  disabled={answeredCount < minRequired}
+                  aria-disabled={answeredCount < minRequired}
+                  title={answeredCount < minRequired ? `Responde ${remaining} más` : "Ver resultados"}
                 >
-                  Ver resultados
+                  {answeredCount < minRequired ? `Ver resultados (${remaining} más)` : "Ver resultados"}
                 </button>
               </motion.div>
             ) : (
@@ -880,7 +930,7 @@ export default function QuizPage() {
                   </button>
                 </div>
 
-                {/* Desktop: los tres botones pedidos */}
+                {/* Desktop: los tres botones */}
                 <div className="hidden md:flex items-center justify-center gap-3">
                   <button
                     onClick={() => setDone(false)}
@@ -1108,9 +1158,8 @@ function DetailDialog({
               </Dialog.Title>
               <div className="h-4 md:hidden" />
 
-              {/* Móvil: sin cabecera/recuadro, pregunta más pequeña */}
+              {/* Móvil */}
               <div className="md:hidden">
-                {/* Encabezado de columnas (solo Tú / Diputado) */}
                 <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] px-2 pb-2 text-xs opacity-80">
                   <div />
                   <div className="text-center font-semibold">Tú</div>
@@ -1131,7 +1180,7 @@ function DetailDialog({
                 </div>
               </div>
 
-              {/* Desktop: mantiene la tabla original */}
+              {/* Desktop */}
               <div className="hidden md:block">
                 <div className="rounded-xl border border-white/15 overflow-hidden">
                   <div className="grid grid-cols-[minmax(0,1fr)_110px_110px] gap-0 bg-white/5">
