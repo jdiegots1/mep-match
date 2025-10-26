@@ -161,6 +161,7 @@ export default function QuizPage() {
 
         requestAnimationFrame(() => setEntered(true));
       } finally {
+        // pequeña espera para que la barra llegue visualmente al 100%
         setTimeout(() => alive && setLoading(false), 150);
       }
     })();
@@ -181,7 +182,7 @@ export default function QuizPage() {
     setChoices((prev) => ({ ...prev, [qId]: val }));
     setHoverVal(null);
     if (index < total - 1) setIndex((i) => i + 1);
-    else setDone(true);
+    else setDone(true); // total=10 ⇒ ≥5 seguro
   };
 
   const filteredChoices = useMemo(() => {
@@ -192,10 +193,7 @@ export default function QuizPage() {
     return out;
   }, [choices, matrix]);
 
-  const answeredCount = useMemo(
-    () => Object.keys(filteredChoices).length,
-    [filteredChoices]
-  );
+  const answeredCount = useMemo(() => Object.keys(filteredChoices).length, [filteredChoices]);
   const minRequired = 5;
   const remaining = Math.max(0, minRequired - answeredCount);
 
@@ -227,7 +225,7 @@ export default function QuizPage() {
     return map;
   }, [computeScores]);
 
-  // Base global ordenada por afinidad (para posiciones reales)
+  // Base global ordenada por afinidad
   const globalBase = useMemo(() => {
     const list = allMemberIds.map((id) => ({
       memberId: id,
@@ -433,6 +431,7 @@ export default function QuizPage() {
                     Pregunta {index + 1} de {total}
                   </div>
                   <div className="h-full flex items-end justify-center">
+                    {/* móvil más pequeño */}
                     <h2 className="text-base sm:text-lg md:text-3xl font-semibold leading-snug text-center px-2">
                       {current.q}
                     </h2>
@@ -493,7 +492,7 @@ export default function QuizPage() {
                     </div>
                   </div>
 
-                  {/* AVISO ANONIMATO */}
+                  {/* Aviso anonimato */}
                   <p className="mt-2 text-[10px] leading-tight text-white/60 text-center">
                     No guardamos tus respuestas; el cuestionario es anónimo.
                   </p>
@@ -516,8 +515,6 @@ export default function QuizPage() {
               {/* Encabezado */}
               <div className="mb-4 flex items-center justify-between gap-3 px-2">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
-
-                {/* NUEVAS ETIQUETAS DE MODO */}
                 <div
                   role="tablist"
                   aria-label="Modo de cálculo de afinidad"
@@ -531,8 +528,8 @@ export default function QuizPage() {
                       onClick={() => setMode(m)}
                       title={
                         m === "coverage"
-                          ? "Cuenta coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
-                          : "Solo cuenta coincidencias/desacuerdos; IGNORA sus ausencias."
+                          ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
+                          : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
                       }
                       className={`px-3 py-1.5 text-xs md:text-sm cursor-pointer transition ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
@@ -544,7 +541,7 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              {/* ====== MÓVIL (md:hidden): Top 3 incrustado sin recuadros ====== */}
+              {/* ====== MÓVIL (md:hidden) ====== */}
               <div className="md:hidden px-2">
                 {(() => {
                   const top3 = top.slice(0, 3);
@@ -552,35 +549,39 @@ export default function QuizPage() {
                   const WinnerMobile = ({ id, p }: { id: string; p: number }) => {
                     const img = mepImage(id);
                     return (
-                      <div className="w-full mb-4">
+                      <div className="w-full rounded-2xl border border-white/20 bg-white/5 p-4 mb-4">
                         <span className="text-[10px] uppercase tracking-wider bg-[var(--eu-yellow)] text-black px-2 py-0.5 rounded-md font-semibold inline-block mb-2">
                           Tu mejor coincidencia
                         </span>
-                        <div className="flex items-center gap-3">
-                          {img ? (
-                            <img
-                              src={img}
-                              alt={mepName(id)}
-                              className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30 shrink-0"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-14 h-14 rounded-full bg-white/10 grid place-items-center">👤</div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            <div className="text-xl font-bold leading-tight break-words">{mepName(id)}</div>
-                            <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
-                            <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center gap-3">
+                            {img ? (
+                              <img
+                                src={img}
+                                alt={mepName(id)}
+                                className="w-14 h-14 rounded-full object-cover ring-2 ring-white/30 shrink-0"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-14 h-14 rounded-full bg-white/10 grid place-items-center">👤</div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xl font-bold leading-tight break-words">{mepName(id)}</div>
+                              <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
+                              <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <div className="text-2xl font-black leading-none">{p.toFixed(2)}%</div>
+                              <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
+                            </div>
+                          </div>
+                          <div>
                             <span
                               onClick={() => setDetailFor(id)}
-                              className="inline-flex items-center mt-2 px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
+                              className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
                             >
                               Mira sus votos
                             </span>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <div className="text-2xl font-black leading-none">{p.toFixed(2)}%</div>
-                            <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
                           </div>
                         </div>
                       </div>
@@ -590,7 +591,7 @@ export default function QuizPage() {
                   const SmallMobile = ({ id, p, place }: { id: string; p: number; place: number }) => {
                     const img = mepImage(id);
                     return (
-                      <div className="w-full flex items-center gap-3 mb-3">
+                      <div className="w-full rounded-2xl border border-white/15 bg-white/5 p-3 flex items-center gap-3 mb-3">
                         <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-[11px]">
                           {place}
                         </div>
@@ -603,11 +604,13 @@ export default function QuizPage() {
                           <div className="font-semibold leading-tight break-words">{mepName(id)}</div>
                           <div className="text-xs opacity-80 leading-tight break-words">{mepGroup(id)}</div>
                           <div className="text-[11px] opacity-70 leading-tight break-words">{mepCountry(id)}</div>
-                          <span
-                            onClick={() => setDetailFor(id)}
-                            className="inline-flex items-center mt-2 px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
-                          >
-                            Mira sus votos
+                          <span className="mt-2 inline-flex">
+                            <span
+                              onClick={() => setDetailFor(id)}
+                              className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-xs cursor-pointer"
+                            >
+                              Mira sus votos
+                            </span>
                           </span>
                         </div>
                         <div className="text-right shrink-0">
@@ -628,7 +631,7 @@ export default function QuizPage() {
                 })()}
               </div>
 
-              {/* ====== DESKTOP (hidden md:block) — se mantiene con tarjetas ====== */}
+              {/* ====== DESKTOP (hidden md:block) ====== */}
               <div className="hidden md:block">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -857,7 +860,7 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija — AHORA NO SE RENDERIZA si hay overlay */}
+      {/* Barra inferior fija — NO se renderiza si hay overlay */}
       {!overlayOpen && (
         <div className="fixed left-0 right-0 bottom-0 z-[1000] pointer-events-auto bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
           <AnimatePresence initial={false} mode="wait">
@@ -888,6 +891,7 @@ export default function QuizPage() {
                   Volver atrás
                 </button>
 
+                {/* Ver resultados: bloqueado si <5 */}
                 <button
                   onClick={() => answeredCount >= minRequired && setDone(true)}
                   className={`px-4 py-2 rounded-lg font-semibold ${
@@ -996,6 +1000,7 @@ function InfoDialog({
           />
         </Dialog.Overlay>
 
+        {/* Contenido */}
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -1004,16 +1009,25 @@ function InfoDialog({
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
-            {/* Panel: sin relleno inferior extra (para que no lo tape nada) */}
-            <div className="w-[92vw] max-w-[820px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
+            <div className="relative w-[92vw] max-w-[820px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
+              {/* Botón X */}
+              <Dialog.Close
+                className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-black font-bold hover:bg-white transition cursor-pointer"
+                aria-label="Cerrar"
+              >
+                ✕
+              </Dialog.Close>
+
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
+              {/* Descripción */}
               {q.queSeVota ? (
                 <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
               ) : (
                 <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
               )}
 
+              {/* Enlace centrado */}
               {q.url && (
                 <div className="mt-4 mb-2 text-sm text-center">
                   <a
@@ -1061,6 +1075,11 @@ function InfoDialog({
                   ) : null}
                 </div>
               ) : null}
+
+              {/* Aviso legal al pie */}
+              <p className="mt-6 text-[10px] leading-tight text-white/65 text-center">
+                Datos de votación © HowTheyVote.eu — ODbL/DBCL para la base y contenidos; fotos y resúmenes quedan excluidos.
+              </p>
             </div>
           </motion.div>
         </Dialog.Content>
@@ -1111,7 +1130,7 @@ function DetailDialog({
             exit={{ opacity: 0 }}
           />
         </Dialog.Overlay>
-
+        {/* Centro real en móvil y desktop */}
         <Dialog.Content asChild>
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
@@ -1120,7 +1139,16 @@ function DetailDialog({
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
-            <div className="w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
+            <div className="relative w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
+              {/* Botón X */}
+              <Dialog.Close
+                className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-black font-bold hover:bg-white transition cursor-pointer"
+                aria-label="Cerrar"
+              >
+                ✕
+              </Dialog.Close>
+
+              {/* Título: móvil solo nombre; desktop completo */}
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
                 <span className="md:hidden">{mepName(memberId)}</span>
                 <span className="hidden md:inline">
@@ -1176,7 +1204,11 @@ function DetailDialog({
                   </div>
                 </div>
               </div>
-              {/* Fin desktop */}
+
+              {/* Aviso legal al pie */}
+              <p className="mt-6 text-[10px] leading-tight text-white/65 text-center">
+                Datos de votación © HowTheyVote.eu — ODbL/DBCL para la base y contenidos; fotos y resúmenes quedan excluidos.
+              </p>
             </div>
           </motion.div>
         </Dialog.Content>
