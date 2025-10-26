@@ -17,8 +17,8 @@ export default function Page() {
           <Image
             src="/logo.png"
             alt="Logo del proyecto"
-            width={128}
-            height={128}
+            width={500}
+            height={500}
             priority
             className="mx-auto w-24 h-24 sm:w-28 sm:h-28 object-contain"
           />
