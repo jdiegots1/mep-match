@@ -395,12 +395,23 @@ export default function QuizPage() {
       )}
 
       {/* Cabecera */}
-      <header className="max-w-5xl w-full mx-auto mb-2 flex items-center justify-between">
-        <div className="text-sm opacity-80">¿A qué eurodiputado me parezco?</div>
-        <div className="text-sm font-medium">
-          {answeredCount}/{total}
-        </div>
-      </header>
+        <header className="max-w-5xl w-full mx-auto mb-2">
+            {!done ? (
+                // Durante el test: solo el título centrado
+                <div className="text-sm opacity-80 text-center">¿A qué eurodiputado me parezco?</div>
+            ) : (
+                // En resultados: si faltan preguntas por responder, muestra aviso centrado
+                (() => {
+                const quedan = Math.max(0, total - answeredCount);
+                if (quedan <= 0) return <div className="h-5" />; // espaciador sutil
+                return (
+                    <div className="text-sm opacity-80 text-center">
+                    {quedan === 1 ? "Te queda una pregunta por responder" : `Te quedan ${quedan} preguntas por responder`}
+                    </div>
+                );
+                })()
+            )}
+        </header>
 
       {/* Progreso */}
       <div className="max-w-5xl w-full mx-auto mb-4">
@@ -512,34 +523,70 @@ export default function QuizPage() {
             transition={{ duration: 0.25 }}
           >
             <div className="w-full max-w-6xl mx-auto">
-              {/* Encabezado */}
-              <div className="mb-4 flex items-center justify-between gap-3 px-2">
+              {/* Encabezado resultados */}
+                {/* ====== MOBILE ====== */}
+                <div className="md:hidden px-2 mb-4">
+                <div className="w-full flex justify-center">
+                    <div
+                    role="tablist"
+                    aria-label="Modo de cálculo de afinidad"
+                    className="inline-flex w-full max-w-[420px] justify-center rounded-xl overflow-hidden border border-white/20 bg-white/5"
+                    >
+                    {(["coverage", "raw"] as Mode[]).map((m) => (
+                        <button
+                        key={m}
+                        role="tab"
+                        aria-selected={mode === m}
+                        onClick={() => setMode(m)}
+                        title={
+                            m === "coverage"
+                            ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
+                            : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
+                        }
+                        className={`flex-1 px-4 py-2 text-sm whitespace-nowrap cursor-pointer transition ${
+                            mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
+                        }`}
+                        >
+                        {m === "coverage" ? "Contar ausencias" : "Ignorar ausencias"}
+                        </button>
+                    ))}
+                    </div>
+                </div>
+
+                {/* Titular cercano, centrado y más humano */}
+                <div className="mt-2 text-center text-lg font-semibold">
+                    Tus votos se parecen a los de estos eurodiputados
+                </div>
+                </div>
+
+                {/* ====== DESKTOP ====== */}
+                <div className="hidden md:flex items-center justify-between gap-3 px-2 mb-4">
                 <h2 className="text-2xl font-bold">Tus resultados</h2>
                 <div
-                  role="tablist"
-                  aria-label="Modo de cálculo de afinidad"
-                  className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/5"
+                    role="tablist"
+                    aria-label="Modo de cálculo de afinidad"
+                    className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/5"
                 >
-                  {(["coverage", "raw"] as Mode[]).map((m) => (
+                    {(["coverage", "raw"] as Mode[]).map((m) => (
                     <button
-                      key={m}
-                      role="tab"
-                      aria-selected={mode === m}
-                      onClick={() => setMode(m)}
-                      title={
+                        key={m}
+                        role="tab"
+                        aria-selected={mode === m}
+                        onClick={() => setMode(m)}
+                        title={
                         m === "coverage"
-                          ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
-                          : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
-                      }
-                      className={`px-3 py-1.5 text-xs md:text-sm cursor-pointer transition ${
+                            ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
+                            : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
+                        }
+                        className={`px-3 py-1.5 text-sm cursor-pointer transition ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
-                      }`}
+                        }`}
                     >
-                      {m === "coverage" ? "Contar ausencias" : "Ignorar ausencias"}
+                        {m === "coverage" ? "Contar ausencias" : "Ignorar ausencias"}
                     </button>
-                  ))}
+                    ))}
                 </div>
-              </div>
+                </div>
 
               {/* ====== MÓVIL (md:hidden) ====== */}
               <div className="md:hidden px-2">
@@ -969,7 +1016,8 @@ export default function QuizPage() {
         mepName={mepName}
         mepGroup={mepGroup}
         mepCountry={mepCountry}
-      />
+        mepImage={mepImage}
+        />
     </main>
   );
 }
@@ -1098,6 +1146,7 @@ function DetailDialog({
   mepName,
   mepGroup,
   mepCountry,
+  mepImage,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1108,6 +1157,7 @@ function DetailDialog({
   mepName: (id: string) => string;
   mepGroup: (id: string) => string;
   mepCountry: (id: string) => string;
+   mepImage: (id: string) => string | null;
 }) {
   if (!memberId) return null;
 
@@ -1160,26 +1210,40 @@ function DetailDialog({
               <div className="h-4 md:hidden" />
 
               {/* Móvil */}
-              <div className="md:hidden">
-                <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] px-2 pb-2 text-xs opacity-80">
-                  <div />
-                  <div className="text-center font-semibold">Tú</div>
-                  <div className="text-center font-semibold">Diputado</div>
+                <div className="md:hidden">
+                <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] px-2 pb-2 text-xs opacity-80 items-center">
+                    <div />
+                    <div className="text-center font-semibold">Tú</div>
+                    <div className="text-center">
+                    {(() => {
+                        const img = mepImage(memberId);
+                        return img ? (
+                        <img
+                            src={img}
+                            alt={mepName(memberId)}
+                            className="inline-block w-6 h-6 rounded-full object-cover ring-1 ring-white/40 align-middle"
+                            loading="lazy"
+                        />
+                        ) : (
+                        <span className="inline-block w-6 h-6 rounded-full bg-white/10 align-middle" />
+                        );
+                    })()}
+                    </div>
                 </div>
                 <div className="divide-y divide-white/10">
-                  {rows.map((r) => (
+                    {rows.map((r) => (
                     <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_88px_88px] items-center py-2">
-                      <div className="px-2 text-xs leading-snug">{r.q}</div>
-                      <div className="px-2 flex items-center justify-center">
+                        <div className="px-2 text-xs leading-snug">{r.q}</div>
+                        <div className="px-2 flex items-center justify-center">
                         <span className={`w-5 h-5 rounded-full ${colorFromVal(r.myVote)}`} title={labelFromVal(r.myVote)} />
-                      </div>
-                      <div className="px-2 flex items-center justify-center">
+                        </div>
+                        <div className="px-2 flex items-center justify-center">
                         <span className={`w-5 h-5 rounded-full ${colorFromVal(r.mepVote)}`} title={labelFromVal(r.mepVote)} />
-                      </div>
+                        </div>
                     </div>
-                  ))}
+                    ))}
                 </div>
-              </div>
+                </div>
 
               {/* Desktop */}
               <div className="hidden md:block">
