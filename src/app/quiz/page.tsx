@@ -86,7 +86,7 @@ export default function QuizPage() {
   const [showCount, setShowCount] = useState(10);
   const rankingRef = useRef<HTMLDivElement | null>(null);
 
-  // NUEVO: visibilidad del ranking
+  // visibilidad del ranking
   const [showRanking, setShowRanking] = useState(false);
   const revealRanking = () => {
     if (!showRanking) setShowRanking(true);
@@ -289,7 +289,7 @@ export default function QuizPage() {
       base = base.filter(({ memberId }) => {
         const m = members.find((mm) => mm.id === memberId);
         const name = m?.name?.toLowerCase() ?? "";
-        const group = m?.group?.toLowerCase() ?? "";
+               const group = m?.group?.toLowerCase() ?? "";
         const country = m?.country?.toLowerCase() ?? "";
         return name.includes(q) || group.includes(q) || country.includes(q);
       });
@@ -436,11 +436,15 @@ export default function QuizPage() {
                   <div className="text-sm opacity-80 mb-2">
                     Pregunta {index + 1} de {total}
                   </div>
-                  <div className="h-full flex items-end justify-center">
-                    {/* Móvil */}
+                  <div className="h-full flex flex-col items-center justify-end">
+                    {/* Pregunta */}
                     <h2 className="text-base sm:text-lg md:text-3xl font-semibold leading-snug text-center px-2">
                       {current.q}
                     </h2>
+                    {/* Botón Más información — transparente, sin borde */}
+                    <div className="mt-2">
+                      <InfoDialog q={current} onOpenChange={setInfoOpen} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -491,10 +495,6 @@ export default function QuizPage() {
                           </button>
                         );
                       })}
-                    </div>
-
-                    <div className="mt-5">
-                      <InfoDialog q={current} onOpenChange={setInfoOpen} />
                     </div>
                   </div>
 
@@ -1039,7 +1039,10 @@ function InfoDialog({
   return (
     <Dialog.Root onOpenChange={onOpenChange}>
       <Dialog.Trigger asChild>
-        <button className="px-4 py-2 rounded-xl text-sm font-bold bg-white/80 text-black cursor-pointer">
+        {/* Botón transparente, sin borde */}
+        <button
+          className="bg-transparent border-0 p-0 text-sm font-medium text-white/80 hover:text-white hover:underline underline-offset-4 focus:outline-none focus:ring-0 cursor-pointer"
+        >
           Más información
         </button>
       </Dialog.Trigger>
@@ -1178,7 +1181,7 @@ function DetailDialog({
       <Dialog.Portal>
         <Dialog.Overlay asChild>
           <motion.div
-            className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z_[90] bg-black/50 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
