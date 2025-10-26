@@ -19,7 +19,7 @@ export const metadata: Metadata = {
       "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
     url: "https://mep-match.vercel.app/",
     siteName: "MEP Match",
-    images: [{ url: "https://mep-match.vercel.app/_next/image?url=%2Flogo.png&w=384&q=75", width: 1200, height: 630, alt: "MEP Match" }],
+    images: ["/images/logo_preview.png"],
     locale: "es_ES",
     type: "website",
     },
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
       title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
       description:
         "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
-      images: ["https://mep-match.vercel.app/_next/image?url=%2Flogo.png&w=384&q=75"],
+      images: ["/images/logo_preview.png"],
     },
 };
 
