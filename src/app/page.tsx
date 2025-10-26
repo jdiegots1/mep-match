@@ -1,40 +1,8 @@
-// app/page.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import type { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
-  description:
-    "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
-  openGraph: {
-    title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
-    description:
-      "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
-    url: "https://mep-match.vercel.app/",
-    siteName: "MEP Match",
-    images: [
-      {
-        url: "https://mep-match.vercel.app/_next/image?url=%2Flogo.png&w=384&q=75",
-        width: 1200,
-        height: 630,
-        alt: "MEP Match",
-      },
-    ],
-    locale: "es_ES",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
-    description:
-      "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
-    images: ["https://tudominio.com/og-image.jpg"],
-  },
-};
 
 export default function Page() {
   const router = useRouter();
@@ -44,7 +12,7 @@ export default function Page() {
 
   return (
     <main className="min-h-dvh flex items-center justify-center bg-eu">
-      <div className="text-center max-w-3xl md:max-w-4xl px-4 sm:px-6">
+      <div className="text-center max-w-4xl px-4 sm:px-6">
         {/* Logo */}
         <div className={`mx-auto mb-8 sm:mb-10 ${mounted ? "fade-in" : "opacity-0"}`}>
           <Image
@@ -58,11 +26,10 @@ export default function Page() {
           />
         </div>
 
-        {/* Título */}
         <h1
           className={`text-2xl sm:text-4xl font-extrabold tracking-tight ${
             mounted ? "fade-in fade-in-1" : "opacity-0"
-          } mb-6 sm:mb-8 inline-block sm:whitespace-nowrap md:whitespace-nowrap`}
+          } mb-6 sm:mb-8 inline-block sm:whitespace-nowrap`}
         >
           ¿Con qué <span className="text-[#ffcc00]">eurodiputados</span> te alineas más?
         </h1>
@@ -71,15 +38,14 @@ export default function Page() {
         <div
           aria-hidden
           className={`mx-auto h-[2px] rounded-full bg-white/40 transition-[width,opacity] duration-700 ease-out mb-8 sm:mb-10 ${
-            mounted ? "w-64 sm:w-96 md:w-[36rem] opacity-100" : "w-0 opacity-0"
+            mounted ? "w-64 sm:w-96 md:w-[48rem] opacity-100" : "w-0 opacity-0"
           }`}
         />
 
-        {/* Subtítulo */}
         <p
           className={`text-sm sm:text-base text-white/80 leading-relaxed ${
             mounted ? "fade-in fade-in-2" : "opacity-0"
-          } mt-6 sm:mt-8 inline-block sm:whitespace-nowrap md:whitespace-nowrap`}
+          } mt-6 sm:mt-8 inline-block sm:whitespace-nowrap`}
         >
           Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.
         </p>
