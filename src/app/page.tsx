@@ -16,7 +16,7 @@ export default function Page() {
         <div className={`mx-auto mb-8 sm:mb-10 ${mounted ? "fade-in" : "opacity-0"}`}>
           <Image
             src="/logo.png"
-            alt="Logo del proyecto"
+            alt="Logo de MEP Match"
             width={4134}
             height={2362}
             priority

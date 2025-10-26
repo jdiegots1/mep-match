@@ -10,8 +10,8 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "¿A qué eurodiputado me parezco?",
-  description: "Juega con votaciones del Parlamento Europeo (HowTheyVote.eu).",
+  title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
+  description: "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
 };
 
 export default function RootLayout({

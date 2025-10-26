@@ -441,7 +441,7 @@ export default function QuizPage() {
                     <h2 className="text-base sm:text-lg md:text-3xl font-semibold leading-snug text-center px-2">
                       {current.q}
                     </h2>
-                    {/* Botón Más información — transparente, sin borde */}
+                    {/* Botón Más información*/}
                     <div className="mt-2">
                       <InfoDialog q={current} onOpenChange={setInfoOpen} />
                     </div>
@@ -1039,9 +1039,8 @@ function InfoDialog({
   return (
     <Dialog.Root onOpenChange={onOpenChange}>
       <Dialog.Trigger asChild>
-        {/* Botón transparente, sin borde */}
         <button
-          className="bg-transparent border-0 p-0 text-sm font-medium text-white/80 hover:text-white hover:underline underline-offset-4 focus:outline-none focus:ring-0 cursor-pointer"
+          className="bg-transparent border-0 p-0 text-sm font-medium text-white/80 hover:text-white focus:outline-none focus:ring-0 cursor-pointer"
         >
           Más información
         </button>
