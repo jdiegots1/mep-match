@@ -86,6 +86,15 @@ export default function QuizPage() {
   const [showCount, setShowCount] = useState(10);
   const rankingRef = useRef<HTMLDivElement | null>(null);
 
+  // NUEVO: visibilidad del ranking
+  const [showRanking, setShowRanking] = useState(false);
+  const revealRanking = () => {
+    if (!showRanking) setShowRanking(true);
+    requestAnimationFrame(() => {
+      rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
   useEffect(() => setShowCount(10), [search]);
 
   const total = questions.length;
@@ -202,7 +211,7 @@ export default function QuizPage() {
 
   const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
-// IDs presentes en la matriz
+  // IDs presentes en la matriz
   const allMemberIds = useMemo(() => {
     const set = new Set<string>();
     Object.values(matrix).forEach((row) => {
@@ -213,14 +222,12 @@ export default function QuizPage() {
     return Array.from(set).filter((id) => members.some((m) => m.id === id));
   }, [matrix, members]);
 
- 
   const scoreMap = useMemo(() => {
     const map = new Map<string, number>();
     computeScores.forEach((s) => map.set(s.memberId, s.affinity));
     return map;
   }, [computeScores]);
 
- 
   const globalBase = useMemo(() => {
     const list = allMemberIds.map((id) => ({
       memberId: id,
@@ -230,7 +237,6 @@ export default function QuizPage() {
     list.sort((a, b) => b.affinity - a.affinity);
     return list;
   }, [allMemberIds, scoreMap, members]);
-
 
   const globalPosMap = useMemo(() => {
     let lastPct: number | null = null;
@@ -320,10 +326,6 @@ export default function QuizPage() {
   const mepCountry = (id: string) => mepById(id)?.country || "—";
   const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
 
-  const smoothScrollToRanking = () => {
-    rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
   const overlayOpen = infoOpen || !!detailFor;
 
   // Panel progreso vertical
@@ -390,21 +392,21 @@ export default function QuizPage() {
       )}
 
       {/* Cabecera */}
-        <header className="max-w-5xl w-full mx-auto mb-2">
-            {!done ? (
-                <div className="text-sm opacity-80 text-center">¿A qué eurodiputado me parezco?</div>
-            ) : (
-                (() => {
-                const quedan = Math.max(0, total - answeredCount);
-                if (quedan <= 0) return <div className="h-5" />;
-                return (
-                    <div className="text-sm opacity-80 text-center">
-                    {quedan === 1 ? "Te queda una pregunta por responder" : `Te quedan ${quedan} preguntas por responder`}
-                    </div>
-                );
-                })()
-            )}
-        </header>
+      <header className="max-w-5xl w-full mx-auto mb-2">
+        {!done ? (
+          <div className="text-sm opacity-80 text-center">¿A qué eurodiputado me parezco?</div>
+        ) : (
+          (() => {
+            const quedan = Math.max(0, total - answeredCount);
+            if (quedan <= 0) return <div className="h-5" />;
+            return (
+              <div className="text-sm opacity-80 text-center">
+                {quedan === 1 ? "Te queda una pregunta por responder" : `Te quedan ${quedan} preguntas por responder`}
+              </div>
+            );
+          })()
+        )}
+      </header>
 
       {/* Progreso */}
       <div className="max-w-5xl w-full mx-auto mb-4">
@@ -516,70 +518,70 @@ export default function QuizPage() {
           >
             <div className="w-full max-w-6xl mx-auto">
               {/* Encabezado */}
-                {/* Móvil */}
-                <div className="md:hidden px-2 mb-4">
+              {/* Móvil */}
+              <div className="md:hidden px-2 mb-4">
                 <div className="w-full flex justify-center">
-                    <div
+                  <div
                     role="tablist"
                     aria-label="Modo de cálculo de afinidad"
                     className="inline-flex w-full max-w-[420px] justify-center rounded-xl overflow-hidden border border-white/20 bg-white/5"
-                    >
+                  >
                     {(["coverage", "raw"] as Mode[]).map((m) => (
-                        <button
+                      <button
                         key={m}
                         role="tab"
                         aria-selected={mode === m}
                         onClick={() => setMode(m)}
                         title={
-                            m === "coverage"
+                          m === "coverage"
                             ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
                             : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
                         }
                         className={`flex-1 px-4 py-2 text-sm whitespace-nowrap cursor-pointer transition ${
-                            mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
+                          mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
                         }`}
-                        >
+                      >
                         {m === "coverage" ? "Contar ausencias" : "Ignorar ausencias"}
-                        </button>
+                      </button>
                     ))}
-                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-2 text-center text-lg font-semibold">
-                    Tus votos se parecen a los de estos eurodiputados
+                  Tus votos se parecen a los de estos eurodiputados
                 </div>
-                </div>
+              </div>
 
-                {/* Escritorio */}
-                <div className="hidden md:flex items-center justify-between gap-3 px-2 mb-4">
+              {/* Escritorio */}
+              <div className="hidden md:flex items-center justify-between gap-3 px-2 mb-4">
                 <h2 className="text-2xl font-bold">Tus votos se parecen a los de estos eurodiputados</h2>
                 <div
-                    role="tablist"
-                    aria-label="Modo de cálculo de afinidad"
-                    className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/5"
+                  role="tablist"
+                  aria-label="Modo de cálculo de afinidad"
+                  className="inline-flex rounded-xl overflow-hidden border border-white/20 bg-white/5"
                 >
-                    {(["coverage", "raw"] as Mode[]).map((m) => (
+                  {(["coverage", "raw"] as Mode[]).map((m) => (
                     <button
-                        key={m}
-                        role="tab"
-                        aria-selected={mode === m}
-                        onClick={() => setMode(m)}
-                        title={
+                      key={m}
+                      role="tab"
+                      aria-selected={mode === m}
+                      onClick={() => setMode(m)}
+                      title={
                         m === "coverage"
-                            ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
-                            : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
-                        }
-                        className={`px-3 py-1.5 text-sm cursor-pointer transition ${
+                          ? "Contar ausencias: coincidencias, desacuerdos y AUSENCIAS del eurodiputado/a."
+                          : "Ignorar ausencias: solo coincidencias/desacuerdos; se ignoran sus ausencias."
+                      }
+                      className={`px-3 py-1.5 text-sm cursor-pointer transition ${
                         mode === m ? "bg-[var(--eu-yellow)] text-black font-semibold" : "hover:bg-white/10"
-                        }`}
+                      }`}
                     >
-                        {m === "coverage" ? "Contar ausencias" : "Ignorar ausencias"}
+                      {m === "coverage" ? "Contar ausencias" : "Ignorar ausencias"}
                     </button>
-                    ))}
+                  ))}
                 </div>
-                </div>
+              </div>
 
-              {/* Móvil */}
+              {/* Móvil top3 */}
               <div className="md:hidden px-2">
                 {(() => {
                   const top3 = top.slice(0, 3);
@@ -669,7 +671,7 @@ export default function QuizPage() {
                 })()}
               </div>
 
-              {/* Escritorio */}
+              {/* Escritorio top3 */}
               <div className="hidden md:block">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -772,9 +774,10 @@ export default function QuizPage() {
                 </AnimatePresence>
               </div>
 
+              {/* CTA para mostrar ranking */}
               <div className="text-center mt-8 md:mt-10">
                 <span
-                  onClick={smoothScrollToRanking}
+                  onClick={revealRanking}
                   className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
                   role="button"
                 >
@@ -782,115 +785,128 @@ export default function QuizPage() {
                 </span>
               </div>
 
-              {/* Ranking */}
-              <div ref={rankingRef} className="mt-20 md:mt-24 px-2 scroll-mt-24">
-                <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar por nombre, grupo o país…"
-                  className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
-                />
+              {/* Ranking (oculto hasta click) */}
+              <AnimatePresence initial={false}>
+                {showRanking && (
+                  <motion.div
+                    ref={rankingRef}
+                    key="ranking"
+                    className="mt-20 md:mt-24 px-2 scroll-mt-24"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.35, ease: "easeOut" }}
+                    style={{ overflow: "hidden" }}
+                  >
+                    <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Buscar por nombre, grupo o país…"
+                      className="w-full rounded-xl bg-white/10 border border-white/20 px-4 py-2 outline-none mb-4"
+                    />
 
-                {/* Lista */}
-                <div>
-                  <AnimatePresence initial={false}>
-                    {rankedAll.slice(0, showCount).map((r) => (
-                      <motion.div
-                        key={r.memberId}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.18 }}
-                        className="
-                          border-b border-white/10
-                          px-2 sm:px-3 py-2
-                          flex flex-col sm:flex-row sm:items-center sm:gap-3
-                        "
-                      >
-                        {/* Cabecera móvil */}
-                        <div className="flex items-center justify-between sm:hidden mb-1">
-                          <div className="inline-flex items-center gap-2">
-                            <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-md bg-white/10 text-xs font-semibold">
-                              {r.showPos ? r.globalPos : ""}
-                            </span>
-                            {Boolean(search.trim()) && r.countryPos ? (
-                              <span className="text-[11px] opacity-70">#{r.countryPos} país</span>
-                            ) : null}
-                          </div>
-                          <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
-                        </div>
-
-                        {/* Posición escritorio */}
-                        <div className="hidden md:flex w-20 items-center justify-center">
-                          <div className="w-8 text-center font-semibold">
-                            {r.showPos ? r.globalPos : ""}
-                          </div>
-                          {Boolean(search.trim()) && r.countryPos ? (
-                            <span className="text-xs opacity-70 ml-1">#{r.countryPos} país</span>
-                          ) : null}
-                        </div>
-
-                        {/* Foto y texto */}
-                        <div className="flex items-start gap-3 w-full">
-                          {r.image ? (
-                            <img
-                              src={r.image}
-                              alt={r.name}
-                              className="w-10 h-10 rounded-full object-cover shrink-0"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
-                          )}
-
-                          <div className="min-w-0 flex-1">
-                            <div className="font-medium leading-tight break-words sm:truncate">{r.name}</div>
-                            <div className="text-xs opacity-80 leading-tight break-words sm:truncate">{r.group}</div>
-                            <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
-                          </div>
-
-                          {/* Escritorio */}
-                          <div className="hidden md:flex items-center gap-8 shrink-0 ml-auto sm:-mr-3 md:-mr-6 lg:-mr-10 xl:-mr-14">
-                            <div className="text-right font-mono w-36 lg:w-48 xl:w-56">{r.pct.toFixed(2)}%</div>
-                            <span
-                              onClick={() => setDetailFor(r.memberId)}
-                              className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
-                              role="button"
-                            >
-                              Mira sus votos
-                            </span>
-                          </div>
-                        </div>
-                        {/* Móvil */}
-                        <div className="sm:hidden mt-2">
-                          <span
-                            onClick={() => setDetailFor(r.memberId)}
-                            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
-                            role="button"
+                    {/* Lista */}
+                    <div>
+                      <AnimatePresence initial={false}>
+                        {rankedAll.slice(0, showCount).map((r) => (
+                          <motion.div
+                            key={r.memberId}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.18 }}
+                            className="
+                              border-b border-white/10
+                              px-2 sm:px-3 py-2
+                              flex flex-col sm:flex-row sm:items-center sm:gap-3
+                            "
                           >
-                            Mira sus votos
-                          </span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
+                            {/* Cabecera móvil */}
+                            <div className="flex items-center justify-between sm:hidden mb-1">
+                              <div className="inline-flex items-center gap-2">
+                                <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-md bg-white/10 text-xs font-semibold">
+                                  {r.showPos ? r.globalPos : ""}
+                                </span>
+                                {Boolean(search.trim()) && r.countryPos ? (
+                                  <span className="text-[11px] opacity-70">#{r.countryPos} país</span>
+                                ) : null}
+                              </div>
+                              <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
+                            </div>
 
-                {/* Mostrar más */}
-                {rankedAll.length > showCount && (
-                  <div className="text-center mt-4">
-                    <span
-                      onClick={() => setShowCount((c) => c + 10)}
-                      className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
-                      role="button"
-                      aria-label="Mostrar más resultados"
-                    >
-                      Mostrar más
-                    </span>
-                  </div>
+                            {/* Posición escritorio */}
+                            <div className="hidden md:flex w-20 items-center justify-center">
+                              <div className="w-8 text-center font-semibold">
+                                {r.showPos ? r.globalPos : ""}
+                              </div>
+                              {Boolean(search.trim()) && r.countryPos ? (
+                                <span className="text-xs opacity-70 ml-1">#{r.countryPos} país</span>
+                              ) : null}
+                            </div>
+
+                            {/* Foto y texto */}
+                            <div className="flex items-start gap-3 w-full">
+                              {r.image ? (
+                                <img
+                                  src={r.image}
+                                  alt={r.name}
+                                  className="w-10 h-10 rounded-full object-cover shrink-0"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
+                              )}
+
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium leading-tight break-words sm:truncate">{r.name}</div>
+                                <div className="text-xs opacity-80 leading-tight break-words sm:truncate">{r.group}</div>
+                                <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
+                              </div>
+
+                              {/* Escritorio */}
+                              <div className="hidden md:flex items-center gap-8 shrink-0 ml-auto sm:-mr-3 md:-mr-6 lg:-mr-10 xl:-mr-14">
+                                <div className="text-right font-mono w-36 lg:w-48 xl:w-56">{r.pct.toFixed(2)}%</div>
+                                <span
+                                  onClick={() => setDetailFor(r.memberId)}
+                                  className="inline-flex items-center px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
+                                  role="button"
+                                >
+                                  Mira sus votos
+                                </span>
+                              </div>
+                            </div>
+                            {/* Móvil */}
+                            <div className="sm:hidden mt-2">
+                              <span
+                                onClick={() => setDetailFor(r.memberId)}
+                                className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
+                                role="button"
+                              >
+                                Mira sus votos
+                              </span>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </AnimatePresence>
+                    </div>
+
+                    {/* Mostrar más */}
+                    {rankedAll.length > showCount && (
+                      <div className="text-center mt-4">
+                        <span
+                          onClick={() => setShowCount((c) => c + 10)}
+                          className="cursor-pointer inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition"
+                          role="button"
+                          aria-label="Mostrar más resultados"
+                        >
+                          Mostrar más
+                        </span>
+                      </div>
+                    )}
+                  </motion.div>
                 )}
-              </div>
+              </AnimatePresence>
             </div>
           </motion.section>
         )}
@@ -1006,7 +1022,7 @@ export default function QuizPage() {
         mepGroup={mepGroup}
         mepCountry={mepCountry}
         mepImage={mepImage}
-        />
+      />
     </main>
   );
 }
@@ -1284,4 +1300,3 @@ function DetailDialog({
     </Dialog.Root>
   );
 }
-

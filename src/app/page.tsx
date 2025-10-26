@@ -17,10 +17,11 @@ export default function Page() {
           <Image
             src="/logo.png"
             alt="Logo del proyecto"
-            width={500}
-            height={500}
+            width={4134}
+            height={2362}
             priority
-            className="mx-auto w-345 h-250 sm:w-28 sm:h-28 object-contain"
+            sizes="(min-width:1280px) 20rem, (min-width:1024px) 18rem, (min-width:640px) 14rem, 10rem"
+            className="mx-auto h-auto w-40 sm:w-56 md:w-72 lg:w-80 object-contain"
           />
         </div>
 
@@ -32,7 +33,6 @@ export default function Page() {
           ¿Con qué <span className="text-[#ffcc00]">eurodiputados</span> te alineas más?
         </h1>
 
-        {/* Separador */}
         <div
           aria-hidden
           className={`mx-auto h-[2px] rounded-full bg-white/40 transition-[width,opacity] duration-700 ease-out mb-8 sm:mb-10 ${
