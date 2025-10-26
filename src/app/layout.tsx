@@ -29,7 +29,6 @@ export default function RootLayout({
           href="https://howtheyvote.eu"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline"
         >
           <strong>HowTheyVote.eu</strong>
         </a>{" "}
@@ -38,7 +37,6 @@ export default function RootLayout({
           href="https://data.europarl.europa.eu"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline"
         >
           <strong>Portal de Datos Abiertos del Parlamento Europeo</strong>
         </a>

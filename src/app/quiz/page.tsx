@@ -60,7 +60,7 @@ const colorFromVal = (v: number | undefined) =>
     ? "bg-amber-500"
     : "bg-gray-500";
 
-/* ====================== Página ====================== */
+/* Página */
 export default function QuizPage() {
   const router = useRouter();
 
@@ -75,11 +75,9 @@ export default function QuizPage() {
   const [done, setDone] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // Carga real
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState(0); // 0..1
+  const [progress, setProgress] = useState(0);
 
-  // hover para atenuar otras opciones
   const [hoverVal, setHoverVal] = useState<number | null>(null);
 
   // ranking
@@ -93,7 +91,6 @@ export default function QuizPage() {
   const total = questions.length;
   const current = questions[index];
 
-  // Cargar data con progreso
   useEffect(() => {
     let alive = true;
 
@@ -105,17 +102,17 @@ export default function QuizPage() {
       try {
         smoothTo(0.1);
 
-        // Preguntas (33%)
+        // Preguntas
         const qRaw: QuestionInput[] =
           (await fetch("/data/questions.es.json").then((r) => r.json()).catch(() => [])) ?? [];
         alive && smoothTo(0.33);
 
-        // Miembros (66%)
+        // Miembros
         const m: Member[] =
           (await fetch("/data/members.enriched.json").then((r) => r.json()).catch(() => [])) ?? [];
         alive && smoothTo(0.66);
 
-        // Matriz (100%)
+        // Matriz
         const mat: Matrix =
           (await fetch("/data/matrix.json").then((r) => r.json()).catch(() => ({}))) ?? {};
         alive && smoothTo(1);
@@ -148,7 +145,7 @@ export default function QuizPage() {
           })
           .filter(Boolean) as Question[];
 
-        // Solo preguntas presentes en la matriz
+        // Preguntas que están en la matriz
         const filtered = normalized.filter((q) => !!(mat as Matrix)[q.id]);
         const picked = shuffle(filtered).slice(0, 10);
 
@@ -161,7 +158,6 @@ export default function QuizPage() {
 
         requestAnimationFrame(() => setEntered(true));
       } finally {
-        // pequeña espera para que la barra llegue visualmente al 100%
         setTimeout(() => alive && setLoading(false), 150);
       }
     })();
@@ -171,7 +167,6 @@ export default function QuizPage() {
     };
   }, []);
 
-  // progreso por posición
   const progressPct = useMemo(() => {
     if (!total) return 0;
     const pos = Math.min(index + 1, total);
@@ -182,7 +177,7 @@ export default function QuizPage() {
     setChoices((prev) => ({ ...prev, [qId]: val }));
     setHoverVal(null);
     if (index < total - 1) setIndex((i) => i + 1);
-    else setDone(true); // total=10 ⇒ ≥5 seguro
+    else setDone(true);
   };
 
   const filteredChoices = useMemo(() => {
@@ -202,12 +197,12 @@ export default function QuizPage() {
     return scoreMembers(filteredChoices, matrix, {
       coveragePenalty: mode === "coverage",
       minOverlap: minRequired,
-    }); // desc
+    });
   }, [filteredChoices, matrix, mode, answeredCount]);
 
   const top = useMemo(() => (done ? computeScores.slice(0, 10) : []), [done, computeScores]);
 
-  // IDs presentes en la matriz
+// IDs presentes en la matriz
   const allMemberIds = useMemo(() => {
     const set = new Set<string>();
     Object.values(matrix).forEach((row) => {
@@ -218,14 +213,14 @@ export default function QuizPage() {
     return Array.from(set).filter((id) => members.some((m) => m.id === id));
   }, [matrix, members]);
 
-  // Mapa de afinidad por MEP
+ 
   const scoreMap = useMemo(() => {
     const map = new Map<string, number>();
     computeScores.forEach((s) => map.set(s.memberId, s.affinity));
     return map;
   }, [computeScores]);
 
-  // Base global ordenada por afinidad
+ 
   const globalBase = useMemo(() => {
     const list = allMemberIds.map((id) => ({
       memberId: id,
@@ -236,7 +231,7 @@ export default function QuizPage() {
     return list;
   }, [allMemberIds, scoreMap, members]);
 
-  // Posición global comprimida
+
   const globalPosMap = useMemo(() => {
     let lastPct: number | null = null;
     let rank = 0;
@@ -252,7 +247,7 @@ export default function QuizPage() {
     return m;
   }, [globalBase]);
 
-  // Posición por país
+  // Ranking por país
   const countryPosMap = useMemo(() => {
     const map = new Map<string, number>();
     const byCountry = new Map<string, typeof globalBase>();
@@ -331,7 +326,7 @@ export default function QuizPage() {
 
   const overlayOpen = infoOpen || !!detailFor;
 
-  // Panel de progreso vertical (md+)
+  // Panel progreso vertical
   const progressList = useMemo(() => {
     return questions.map((q, i) => {
       const v = choices[q.id];
@@ -343,7 +338,7 @@ export default function QuizPage() {
     });
   }, [questions, choices]);
 
-  // helpers barra inferior (resultados)
+  // Reinicio test
   const resetTest = () => {
     setChoices({});
     setIndex(0);
@@ -351,7 +346,7 @@ export default function QuizPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  /* ========== Loading con barra real ========== */
+  /* Carga */
   if (loading || !total) {
     const pct = Math.round(progress * 100);
     return (
@@ -375,7 +370,7 @@ export default function QuizPage() {
         entered ? "opacity-100" : "opacity-0"
       }`}
     >
-      {/* Progreso vertical (solo md+) */}
+      {/* Progreso vertical */}
       {!done && (
         <div
           aria-label="Progreso del cuestionario"
@@ -397,13 +392,11 @@ export default function QuizPage() {
       {/* Cabecera */}
         <header className="max-w-5xl w-full mx-auto mb-2">
             {!done ? (
-                // Durante el test: solo el título centrado
                 <div className="text-sm opacity-80 text-center">¿A qué eurodiputado me parezco?</div>
             ) : (
-                // En resultados: si faltan preguntas por responder, muestra aviso centrado
                 (() => {
                 const quedan = Math.max(0, total - answeredCount);
-                if (quedan <= 0) return <div className="h-5" />; // espaciador sutil
+                if (quedan <= 0) return <div className="h-5" />;
                 return (
                     <div className="text-sm opacity-80 text-center">
                     {quedan === 1 ? "Te queda una pregunta por responder" : `Te quedan ${quedan} preguntas por responder`}
@@ -442,7 +435,7 @@ export default function QuizPage() {
                     Pregunta {index + 1} de {total}
                   </div>
                   <div className="h-full flex items-end justify-center">
-                    {/* móvil más pequeño */}
+                    {/* Móvil */}
                     <h2 className="text-base sm:text-lg md:text-3xl font-semibold leading-snug text-center px-2">
                       {current.q}
                     </h2>
@@ -503,7 +496,6 @@ export default function QuizPage() {
                     </div>
                   </div>
 
-                  {/* Aviso anonimato */}
                   <p className="mt-2 text-[10px] leading-tight text-white/60 text-center">
                     Tus respuestas no se guardan; son anónimas.
                   </p>
@@ -523,8 +515,8 @@ export default function QuizPage() {
             transition={{ duration: 0.25 }}
           >
             <div className="w-full max-w-6xl mx-auto">
-              {/* Encabezado resultados */}
-                {/* ====== MOBILE ====== */}
+              {/* Encabezado */}
+                {/* Móvil */}
                 <div className="md:hidden px-2 mb-4">
                 <div className="w-full flex justify-center">
                     <div
@@ -553,15 +545,14 @@ export default function QuizPage() {
                     </div>
                 </div>
 
-                {/* Titular cercano, centrado y más humano */}
                 <div className="mt-2 text-center text-lg font-semibold">
                     Tus votos se parecen a los de estos eurodiputados
                 </div>
                 </div>
 
-                {/* ====== DESKTOP ====== */}
+                {/* Escritorio */}
                 <div className="hidden md:flex items-center justify-between gap-3 px-2 mb-4">
-                <h2 className="text-2xl font-bold">Tus resultados</h2>
+                <h2 className="text-2xl font-bold">Tus votos se parecen a los de estos eurodiputados</h2>
                 <div
                     role="tablist"
                     aria-label="Modo de cálculo de afinidad"
@@ -588,7 +579,7 @@ export default function QuizPage() {
                 </div>
                 </div>
 
-              {/* ====== MÓVIL (md:hidden) ====== */}
+              {/* Móvil */}
               <div className="md:hidden px-2">
                 {(() => {
                   const top3 = top.slice(0, 3);
@@ -678,7 +669,7 @@ export default function QuizPage() {
                 })()}
               </div>
 
-              {/* ====== DESKTOP (hidden md:block) ====== */}
+              {/* Escritorio */}
               <div className="hidden md:block">
                 <AnimatePresence mode="wait">
                   <motion.div
@@ -781,7 +772,6 @@ export default function QuizPage() {
                 </AnimatePresence>
               </div>
 
-              {/* CTA */}
               <div className="text-center mt-8 md:mt-10">
                 <span
                   onClick={smoothScrollToRanking}
@@ -831,7 +821,7 @@ export default function QuizPage() {
                           <div className="font-mono text-sm">{r.pct.toFixed(2)}%</div>
                         </div>
 
-                        {/* Posición desktop */}
+                        {/* Posición escritorio */}
                         <div className="hidden md:flex w-20 items-center justify-center">
                           <div className="w-8 text-center font-semibold">
                             {r.showPos ? r.globalPos : ""}
@@ -841,7 +831,7 @@ export default function QuizPage() {
                           ) : null}
                         </div>
 
-                        {/* Foto + texto */}
+                        {/* Foto y texto */}
                         <div className="flex items-start gap-3 w-full">
                           {r.image ? (
                             <img
@@ -860,7 +850,7 @@ export default function QuizPage() {
                             <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
                           </div>
 
-                          {/* Derecha desktop */}
+                          {/* Escritorio */}
                           <div className="hidden md:flex items-center gap-8 shrink-0 ml-auto sm:-mr-3 md:-mr-6 lg:-mr-10 xl:-mr-14">
                             <div className="text-right font-mono w-36 lg:w-48 xl:w-56">{r.pct.toFixed(2)}%</div>
                             <span
@@ -872,8 +862,7 @@ export default function QuizPage() {
                             </span>
                           </div>
                         </div>
-
-                        {/* CTA móvil debajo */}
+                        {/* Móvil */}
                         <div className="sm:hidden mt-2">
                           <span
                             onClick={() => setDetailFor(r.memberId)}
@@ -907,7 +896,7 @@ export default function QuizPage() {
         )}
       </AnimatePresence>
 
-      {/* Barra inferior fija — NO se renderiza si hay overlay */}
+      {/* Barra inferior */}
       {!overlayOpen && (
         <div className="fixed left-0 right-0 bottom-0 z-[1000] pointer-events-auto bg-[#0b1d5f]/70 backdrop-blur border-t border-white/10">
           <AnimatePresence initial={false} mode="wait">
@@ -938,7 +927,7 @@ export default function QuizPage() {
                   Volver atrás
                 </button>
 
-                {/* Ver resultados: bloqueado si <5 */}
+                {/* Botón de Ver resultados */}
                 <button
                   onClick={() => answeredCount >= minRequired && setDone(true)}
                   className={`px-4 py-2 rounded-lg font-semibold ${
@@ -962,7 +951,7 @@ export default function QuizPage() {
                 transition={{ duration: 0.18 }}
                 className="mx-auto w-full max-w-5xl px-4 py-3"
               >
-                {/* Móvil: Volver + Ir a inicio */}
+                {/* Móvil botones */}
                 <div className="flex md:hidden items-center justify-center gap-3">
                   <button
                     onClick={() => setDone(false)}
@@ -978,7 +967,7 @@ export default function QuizPage() {
                   </button>
                 </div>
 
-                {/* Desktop: los tres botones */}
+                {/* Escritorio botones */}
                 <div className="hidden md:flex items-center justify-center gap-3">
                   <button
                     onClick={() => setDone(false)}
@@ -1005,7 +994,7 @@ export default function QuizPage() {
         </div>
       )}
 
-      {/* Modal detalle comparativa */}
+      {/* Modal */}
       <DetailDialog
         open={!!detailFor}
         onOpenChange={(o) => !o && setDetailFor(null)}
@@ -1022,7 +1011,7 @@ export default function QuizPage() {
   );
 }
 
-/* ====================== Modales ====================== */
+/* Modales */
 
 function InfoDialog({
   q,
@@ -1058,7 +1047,7 @@ function InfoDialog({
             className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
             <div className="relative w-[92vw] max-w-[820px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
-              {/* Botón X */}
+              {/* X */}
               <Dialog.Close
                 className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-black font-bold hover:bg-white transition cursor-pointer"
                 aria-label="Cerrar"
@@ -1068,14 +1057,12 @@ function InfoDialog({
 
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-4">Qué se vota</Dialog.Title>
 
-              {/* Descripción */}
               {q.queSeVota ? (
                 <p className="text-sm opacity-90 whitespace-pre-line text-justify">{q.queSeVota}</p>
               ) : (
                 <p className="text-sm opacity-70 text-justify">No hay descripción disponible.</p>
               )}
 
-              {/* Enlace centrado */}
               {q.url && (
                 <div className="mt-4 mb-2 text-sm text-center">
                   <a
@@ -1124,9 +1111,8 @@ function InfoDialog({
                 </div>
               ) : null}
 
-              {/* Aviso legal al pie */}
               <p className="mt-6 text-[10px] leading-tight text-white/65 text-center">
-                Datos de votación © HowTheyVote.eu — ODbL/DBCL para la base y contenidos; fotos y resúmenes quedan excluidos.
+                Los datos fueron extraídos de HowTheyVote.eu y del Portal de Datos Abiertos del Parlamento Europeo.
               </p>
             </div>
           </motion.div>
@@ -1144,8 +1130,8 @@ function DetailDialog({
   choices,
   matrix,
   mepName,
-  mepGroup,   // no lo usamos en el título, pero lo dejo por si lo quieres reutilizar
-  mepCountry, // idem
+  mepGroup,
+  mepCountry,
   mepImage,
 }: {
   open: boolean;
@@ -1192,7 +1178,7 @@ function DetailDialog({
             className="fixed inset-0 z-[95] flex items-center justify-center p-4"
           >
             <div className="relative w-[92vw] max-w-[980px] rounded-2xl border border-white/20 bg-[#0b1d5f]/80 text-white p-5 md:p-7 shadow-[0_10px_40px_rgba(0,0,0,0.35)] max-h-[90vh] md:max-h-[85vh] overflow-y-auto">
-              {/* Botón X */}
+              {/* X */}
               <Dialog.Close
                 className="absolute top-3 right-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-black font-bold hover:bg-white transition cursor-pointer"
                 aria-label="Cerrar"
@@ -1200,15 +1186,13 @@ function DetailDialog({
                 ✕
               </Dialog.Close>
 
-              {/* Título: SOLO NOMBRE (móvil y desktop) */}
               <Dialog.Title className="text-lg md:text-xl font-semibold mb-3">
                 {mepName(memberId)}
               </Dialog.Title>
               <div className="h-2" />
 
-              {/* ======= MÓVIL ======= */}
+              {/* Móvil */}
               <div className="md:hidden">
-                {/* Cabecera: vacío / Tú / foto MEP */}
                 <div className="grid grid-cols-[minmax(0,1fr)_88px_88px] px-2 pb-2 text-xs opacity-80 items-center">
                   <div />
                   <div className="text-center font-semibold">Tú</div>
@@ -1226,7 +1210,6 @@ function DetailDialog({
                   </div>
                 </div>
 
-                {/* Filas sin recuadro, con separadores */}
                 <div className="divide-y divide-white/10">
                   {rows.map((r) => (
                     <div key={r.id} className="grid grid-cols-[minmax(0,1fr)_88px_88px] items-center py-2">
@@ -1248,10 +1231,8 @@ function DetailDialog({
                 </div>
               </div>
 
-              {/* ======= DESKTOP ======= */}
+              {/* Escritorio */}
               <div className="hidden md:block">
-                {/* SIN recuadro: solo cabecera + filas con separadores */}
-                {/* Cabecera: vacío / Tú / foto MEP */}
                 <div className="grid grid-cols-[minmax(0,1fr)_120px_120px] gap-0 px-1 pb-2 text-sm opacity-80 items-center">
                   <div />
                   <div className="text-center font-semibold">Tú</div>
@@ -1293,9 +1274,8 @@ function DetailDialog({
                 </div>
               </div>
 
-              {/* Aviso legal al pie */}
               <p className="mt-6 text-[10px] leading-tight text-white/65 text-center">
-                Datos de votación © HowTheyVote.eu — ODbL/DBCL para la base y contenidos; fotos y resúmenes quedan excluidos.
+                Los datos fueron extraídos de HowTheyVote.eu y del Portal de Datos Abiertos del Parlamento Europeo.
               </p>
             </div>
           </motion.div>
