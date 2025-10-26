@@ -88,11 +88,14 @@ export default function QuizPage() {
 
   // visibilidad del ranking
   const [showRanking, setShowRanking] = useState(false);
+  const [scrollAfterOpen, setScrollAfterOpen] = useState(false);
   const revealRanking = () => {
-    if (!showRanking) setShowRanking(true);
-    requestAnimationFrame(() => {
-      rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    if (!showRanking) {
+        setShowRanking(true);
+        setScrollAfterOpen(true);
+    } else {
+        rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   useEffect(() => setShowCount(10), [search]);
@@ -797,6 +800,12 @@ export default function QuizPage() {
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.35, ease: "easeOut" }}
                     style={{ overflow: "hidden" }}
+                    onAnimationComplete={() => {
+                        if (scrollAfterOpen) {
+                          rankingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                          setScrollAfterOpen(false);
+                        }
+                    }}
                   >
                     <h3 className="text-xl font-semibold mb-3 text-center">Ranking de coincidencia</h3>
                     <input
