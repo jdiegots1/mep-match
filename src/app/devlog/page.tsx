@@ -36,7 +36,13 @@ export default function DevlogPage() {
                 <h2 className="text-lg sm:text-xl font-semibold">{p.title}</h2>
                 <time className="text-xs sm:text-sm text-white/70">{formatDate(p.date)}</time>
               </div>
-              <p className="mt-2 text-sm sm:text-base text-white/85">{p.summary}</p>
+              <div className="mt-2 text-sm sm:text-base text-white/85">
+                {p.summary
+                    .split(/\r?\n\r?\n/)
+                    .map((para, i) => (
+                    <p key={i} className={i ? "mt-3" : ""}>{para}</p>
+                    ))}
+                </div>
             </article>
           ))}
         </div>
