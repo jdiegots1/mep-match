@@ -8,16 +8,19 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "devlog": "node scripts/devlog-editor.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
     "csv-parse": "^6.1.0",
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.24",
+    "inquirer": "^9.3.8",
     "next": "16.0.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "slugify": "^1.6.6",
     "swiper": "^12.0.3",
     "undici": "^7.16.0"
   },
