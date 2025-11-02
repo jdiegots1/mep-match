@@ -1,5 +1,5 @@
 // app/devlog/page.tsx
-import { posts } from "@/data/devlog.ts";
+import { posts } from "@/data/devlog";
 import Link from "next/link";
 
 export const metadata = {
