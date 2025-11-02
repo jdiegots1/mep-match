@@ -2,20 +2,15 @@
 @import "swiper/css";
 @import "swiper/css/navigation";
 
-/* ====== Tipografía Tailwind v4: mapea font-sans a Roboto ======
-   Nota: @theme no es un at-rule CSS estándar; la variable --font-sans
-   se define en :root más abajo para evitar errores de compilación. */
 
-/* Paleta UE */
 :root{
   --eu-blue:#003399;
   --eu-yellow:#ffcc00;
-
-  /* Tipografía: mapea font-sans a Roboto para compatibilidad con Tailwind v4 */
+  --font-roboto: 'Roboto', sans-serif;
   --font-sans: var(--font-roboto), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
                Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
 
-  /* Fondo (oscuro → claro) */
+  
   --bg-dark:#001a66;
   --bg-light:#003399;
 }
@@ -23,10 +18,10 @@ html, body{
   min-height:100%;
 }
 
-/* Fondo fijo, único, que no se repinta al añadir más contenido */
+
 body{
   position: relative;
-  background-color: var(--bg-light); /* fallback */
+  background-color: var(--bg-light);
 }
 body::before{
   content:"";
@@ -34,15 +29,15 @@ body::before{
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* Gradiente estable: oscuro → claro de arriba a abajo */
+  
   background: linear-gradient(180deg, var(--bg-dark) 0%, var(--bg-light) 100%);
   background-repeat: no-repeat;
   background-attachment: fixed;
-  /* Cubre siempre todo el viewport */
+  
   background-size: 100% 100%;
 }
 
-/* ---------- Animaciones ---------- */
+/* Animaciones */
 @keyframes fade-in-up{
   from{ opacity:0; transform:translateY(8px); }
   to{   opacity:1; transform:translateY(0); }
@@ -52,14 +47,12 @@ body::before{
 .fade-in-2{ animation-delay:.20s; }
 .fade-in-3{ animation-delay:.30s; }
 
-/* Suaves crossfades (útil para modo de resultados, etc.) */
 .x-fade{
   transition: opacity .25s ease, transform .25s ease;
 }
 .x-fade-enter{ opacity:0; transform:translateY(4px); }
 .x-fade-ready{ opacity:1; transform:translateY(0); }
 
-/* ---------- Botón estilo UE ---------- */
 .btn-eu{
   display:inline-flex; align-items:center; justify-content:center;
   border-radius:1rem; /* ≈ rounded-2xl */
@@ -73,35 +66,31 @@ body::before{
 .btn-eu:hover{ filter:brightness(.95); transform:translateY(-1px); }
 .btn-eu:active{ transform:translateY(0); }
 
-/* Contenedor centrado de la hero */
 .hero-wrap{ min-height:calc(100dvh - 56px); }
 
-/* ---------- Utilidades ---------- */
-/* Ancho a pantalla completa desde contenedores centrados */
+/* Ancho */
 .full-bleed{
   width:100vw;
   margin-left:calc(50% - 50vw);
   margin-right:calc(50% - 50vw);
 }
 
-/* Ocultar barras de scroll (útil para contenedores horizontales) */
+/* Ocultar scroll */
 .no-scrollbar{
   -ms-overflow-style:none; /* IE/Edge */
   scrollbar-width:none;    /* Firefox */
 }
 .no-scrollbar::-webkit-scrollbar{ display:none; }
 
-/* Elevación sutil para tarjetas (opcional) */
 .card-elevated{
   box-shadow: 0 12px 30px rgba(0,0,0,.14), 0 6px 12px rgba(0,0,0,.10);
 }
 
-/* ---------- Swiper (carrusel) ---------- */
 .swiper{
-  overflow:visible; /* para que se vean las vecinas atenuadas */
+  overflow:visible;
 }
 
-/* Botones prev/next a los extremos, con glassmorphism */
+
 .swiper-button-prev,
 .swiper-button-next{
   width:48px; height:48px; border-radius:9999px;
@@ -115,13 +104,12 @@ body::before{
 .swiper-button-next{ right:16px !important; }
 .swiper-button-disabled{ opacity:.35 !important; }
 
-/* Quitar pseudo flechas por defecto para poder usar solo el círculo si quieres */
 .swiper-button-prev::after,
 .swiper-button-next::after{
-  font-size:20px; /* mantén la flecha simple */
+  font-size:20px;
 }
 
-/* Suavizar la transición de slides */
+
 .swiper-wrapper{
   transition-timing-function: ease !important;
 }
@@ -129,7 +117,6 @@ body::before{
 .swiper-slide { transition: transform .32s ease, opacity .32s ease, filter .32s ease; opacity:.28; filter: blur(1.5px); }
 .swiper-slide.swiper-slide-active { opacity:1; filter:none; transform:none; }
 
-/* Evitar scrollbar horizontal del body cuando el carrusel es full-bleed */
 body{ overflow-x:hidden; }
 
 /* WebKit */
@@ -149,10 +136,9 @@ body{ overflow-x:hidden; }
 /* Firefox */
 * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent; }
 
-/* ========== Mobile-only overrides (no TSX changes needed) ========== */
+/* Móvil */
 @media (max-width: 640px) {
 
-  /* ——— Tipografía/espaciado global ——— */
   html, body{
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
@@ -162,14 +148,11 @@ body{ overflow-x:hidden; }
     scroll-behavior: smooth;
   }
 
-  /* Reduce padding general del <main> y deja espacio por la barra inferior */
   main{
     padding: 12px 12px calc(84px + env(safe-area-inset-bottom)) !important;
   }
 
-  /* = Pregunta (h2) más pequeña SOLO en móvil = */
   main h2{
-    /* más pequeño que antes */
     font-size: clamp(1.05rem, 4.2vw, 1.35rem) !important;
     line-height: 1.25 !important;
   }
@@ -177,7 +160,7 @@ body{ overflow-x:hidden; }
     font-size: clamp(1.05rem, 4.6vw, 1.25rem) !important;
   }
 
-  /* ——— Barra inferior fija ——— */
+  /* Barra inferior */
   .fixed.left-0.right-0.bottom-0{
     padding-bottom: max(8px, env(safe-area-inset-bottom)) !important;
   }
@@ -190,8 +173,7 @@ body{ overflow-x:hidden; }
     min-height: 44px; /* WCAG tap target */
   }
 
-  /* ——— Diálogos (Radix) a pantalla completa ———
-     Ajustado a tus clases reales: w-[92vw] + max-w-[820px]/[980px] */
+
   .w-\[92vw\].max-w-\[820px\],
   .w-\[92vw\].max-w-\[980px\]{
     width: 100vw !important;
@@ -204,36 +186,30 @@ body{ overflow-x:hidden; }
     padding: 16px !important;
   }
 
-  /* Título del diálogo un poco más pequeño */
   .w-\[92vw\].max-w-\[820px\] .text-lg,
   .w-\[92vw\].max-w-\[980px\] .text-lg{
     font-size: 1.05rem !important;
   }
 
-  /* ——— Botones/pills “fantasma” ——— */
   .inline-flex.rounded-lg{
     min-height: 36px;
   }
 
-  /* ——— Tarjetas top-3 ——— */
   .rounded-3xl.border.p-6,
   .rounded-3xl.border.p-8{
     padding: 14px !important;
     border-radius: 16px !important;
   }
-  /* Avatares dentro de tarjetas: algo más pequeños */
   .rounded-full.object-cover{
     width: 56px !important;
     height: 56px !important;
   }
-  /* Chip de posición (2º/3º): */
   .w-7.h-7.rounded-full{
     width: 28px !important;
     height: 28px !important;
     font-size: 11px !important;
   }
 
-  /* ——— CTA “Mira tus coincidencias…” ——— */
   .text-center.mt-10 > span,
   .text-center.mt-8 > span,
   .text-center.mt-6 > span{
@@ -242,7 +218,6 @@ body{ overflow-x:hidden; }
     font-size: 0.9rem !important;
   }
 
-  /* ——— Ranking ——— */
   .border-b.border-white\/10.py-2{
     padding-top: 10px !important;
     padding-bottom: 10px !important;
@@ -260,18 +235,15 @@ body{ overflow-x:hidden; }
     font-size: 12px !important;
   }
 
-  /* Input de búsqueda: alto cómodo */
   input.w-full.rounded-xl{
     min-height: 42px !important;
     font-size: 0.95rem !important;
   }
 
-  /* ——— Progreso superior ——— */
   .h-2.rounded-full{
     height: 9px !important;
   }
 
-  /* ——— Botón “Cerrar” en barra inferior cuando hay overlay ——— */
   .fixed.left-0.right-0.bottom-0 button:only-child{
     min-width: 48%;
     font-weight: 700;

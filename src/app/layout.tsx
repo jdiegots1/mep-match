@@ -1,6 +1,8 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Roboto } from "next/font/google";
 import "./globals.css";
+import Header from "@/components/Header";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -13,23 +15,23 @@ export const metadata: Metadata = {
   title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
   description:
     "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
-   openGraph: {
-     title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
-   description:
+  openGraph: {
+    title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
+    description:
       "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
     url: "https://mep-match.vercel.app/",
     siteName: "MEP Match",
     images: ["/images/logo_preview.png"],
     locale: "es_ES",
     type: "website",
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
-      description:
-        "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
-      images: ["/images/logo_preview.png"],
-    },
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MEP Match - ¿Con qué eurodiputados te alineas más?",
+    description:
+      "Responde a votaciones reales del Parlamento Europeo y descubre con quién coincides más.",
+    images: ["/images/logo_preview.png"],
+  },
 };
 
 export default function RootLayout({
@@ -40,7 +42,9 @@ export default function RootLayout({
       <body
         className={`${roboto.variable} font-sans antialiased min-h-dvh bg-gradient-to-b from-[#001b6b] via-[#002a8a] to-[#003399] text-white`}
       >
-        {children}
+        <Header />
+        <div className="pt-16">{children}</div>
+
         <footer className="text-xs/relaxed text-white/70 p-4 text-center">
           Los datos fueron extraídos de{" "}
           <a
