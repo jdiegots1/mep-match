@@ -12,6 +12,6 @@ export const posts: DevlogPost[] = [
     "slug": "novedades-4-noviembre-2025",
     "title": "Novedades 4 de noviembre de 2025",
     "date": "2025-11-04",
-    "summary": "Hola :)\r\n\r\nEste martes 4 de noviembre se añadieron dos novedades para MEP Match:\r\n\r\n- Añadida esta página de novedades, donde se publicarán todas las cosas que se vayan introduciendo.\r\n- Añadidos los partidos políticos o coaliciones electorales por las que se presentaron los eurodiputados."
+    "summary": "Hola :)\r\n\r\nEste martes 4 de noviembre se añadieron dos novedades para MEP Match:\r\n\r\n- Añadida esta página de novedades, donde se publicarán todas las cosas que se vayan introduciendo.\r\n- Añadidos los partidos políticos o coaliciones electorales por las que se presentaron los eurodiputados.\r\n\r\nSe sigue trabajando en novedades como una versón en inglés y mejoras en el rendimiento e interfaz.\r\n\r\n¡Gracias por usar MEP Match!",
   }
 ];
