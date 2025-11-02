@@ -1,9 +1,9 @@
-// src/app/devlog/page.tsx
+// app/devlog/page.tsx
 import { posts, type DevlogPost } from "@/data/devlog";
 
 export const metadata = {
   title: "Novedades · MEP Match",
-  description: "Devlog con avances, cambios y notas del proyecto.",
+  description: "Cambios y avances del proyecto.",
 };
 
 function formatDate(d: string) {
@@ -22,10 +22,9 @@ export default function DevlogPage() {
   const sorted = [...posts].sort((a, b) => (a.date < b.date ? 1 : -1));
 
   return (
-    <main className="min-h-dvh px-4 pb-20">
+    <main className="min-h-dvh px-4 pb-20 fade-in">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-2">Novedades</h1>
-        <p className="text-white/80 mb-8">Cambios y avances del proyecto. Corto y al pie.</p>
+        <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mb-6">Novedades</h1>
 
         <div className="space-y-4">
           {sorted.map((p: DevlogPost) => (
@@ -38,15 +37,6 @@ export default function DevlogPage() {
                 <time className="text-xs sm:text-sm text-white/70">{formatDate(p.date)}</time>
               </div>
               <p className="mt-2 text-sm sm:text-base text-white/85">{p.summary}</p>
-              {p.tags?.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {p.tags.map((t: string) => (
-                    <span key={t} className="text-[11px] px-2 py-0.5 rounded-md bg-black/25">
-                      #{t}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
             </article>
           ))}
         </div>

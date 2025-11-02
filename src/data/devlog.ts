@@ -2,25 +2,17 @@
 export type DevlogPost = {
   slug: string;
   title: string;
-  date: string; // ISO "2025-11-02"
+  date: string;   // ISO: "2025-11-04"
   summary: string;
-  tags?: string[];
-  content?: string; // opcional si luego haces página por slug
+  content?: string;
 };
 
 export const posts: DevlogPost[] = [
   {
-    slug: "primer-prototipo-cuestionario",
-    title: "Primer prototipo del cuestionario",
-    date: "2025-11-02",
-    summary: "Carga de 10 preguntas aleatorias, afinidad por cobertura/‘raw’ y ranking básico.",
-    tags: ["quiz", "afinidad", "ui"]
+    slug: "partido-o-coalicion-en-candidaturas",
+    title: "Añadido el partido o coalición electoral",
+    date: "2025-11-04",
+    summary:
+      "Cada eurodiputado muestra la fuerza política o coalición con la que se presentó a las elecciones al Parlamento Europeo.",
   },
-  {
-    slug: "ranking-con-scroll-y-animaciones",
-    title: "Ranking con scroll suave y animaciones",
-    date: "2025-11-02",
-    summary: "Transición colapsable y auto-scroll al revelar el ranking.",
-    tags: ["ranking", "ux"]
-  }
 ];
