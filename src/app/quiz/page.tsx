@@ -15,6 +15,8 @@ type Member = {
   group?: string | null;
   image?: string | null;
   photo?: string | null;
+  party?: string | null;
+  partySig?: string | null;
 };
 
 type QuestionInput = {
@@ -292,9 +294,17 @@ export default function QuizPage() {
       base = base.filter(({ memberId }) => {
         const m = members.find((mm) => mm.id === memberId);
         const name = m?.name?.toLowerCase() ?? "";
-               const group = m?.group?.toLowerCase() ?? "";
+        const group = m?.group?.toLowerCase() ?? "";
         const country = m?.country?.toLowerCase() ?? "";
-        return name.includes(q) || group.includes(q) || country.includes(q);
+        const party = (m as any)?.party?.toLowerCase() ?? "";
+        const partySig = (m as any)?.partySig?.toLowerCase() ?? "";
+        return (
+          name.includes(q) ||
+          group.includes(q) ||
+          country.includes(q) ||
+          party.includes(q) ||
+          partySig.includes(q)
+        );
       });
     }
 
@@ -319,6 +329,8 @@ export default function QuizPage() {
         group: m?.group ?? "—",
         country: m?.country ?? "—",
         image: m?.image ?? m?.photo ?? null,
+        party: (m as any)?.party ?? null,
+        partySig: (m as any)?.partySig ?? null,
       };
     });
   }, [done, globalBase, globalPosMap, countryPosMap, members, search]);
@@ -328,6 +340,8 @@ export default function QuizPage() {
   const mepGroup = (id: string) => mepById(id)?.group || "—";
   const mepCountry = (id: string) => mepById(id)?.country || "—";
   const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
+  const mepParty = (id: string) => mepById(id)?.party || null;
+const mepPartySig = (id: string) => mepById(id)?.partySig || null;
 
   const overlayOpen = infoOpen || !!detailFor;
 
@@ -609,16 +623,24 @@ export default function QuizPage() {
                               <div className="w-14 h-14 rounded-full bg-white/10 grid place-items-center">👤</div>
                             )}
                             <div className="min-w-0 flex-1">
-                              <div className="text-xl font-bold leading-tight break-words">{mepName(id)}</div>
-                              <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
-                              <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <div className="text-2xl font-black leading-none">{p.toFixed(2)}%</div>
-                              <div className="text-[10px] uppercase tracking-wider opacity-70">afinidad</div>
-                            </div>
-                          </div>
-                          <div>
+                              <div className="text-xl font-bold leading-tight break-words flex items-center gap-2 flex-wrap">
+                                      {mepName(id)}
+                                      {mepPartySig(id) ? (
+                                        <span
+                                          className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none"
+                                        >
+                                          {mepPartySig(id)}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                    {/* Grupo y país (como ya tenías) */}
+                                    <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
+                                    <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
+                                    {/* Nombre completo del partido (móvil necesita verlo, no hay hover) */}
+                                    {mepParty(id) ? (
+                                      <div className="text-[11px] opacity-75 break-words mt-1 line-clamp-1">{mepParty(id)}</div>
+                                    ) : null}
+                                  </div>
                             <span
                               onClick={() => setDetailFor(id)}
                               className="inline-flex items-center px-3 py-1.5 rounded-lg bg-black/20 hover:bg-black/30 transition text-sm cursor-pointer"
@@ -637,6 +659,16 @@ export default function QuizPage() {
                       <div className="w-full rounded-2xl border border-white/15 bg-white/5 p-3 flex items-center gap-3 mb-3">
                         <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-[11px]">
                           {place}
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                          {mepPartySig(id) ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none">
+                              {mepPartySig(id)}
+                            </span>
+                          ) : null}
+                          {mepParty(id) ? (
+                            <span className="text-[11px] opacity-75 line-clamp-1">{mepParty(id)}</span>
+                          ) : null}
                         </div>
                         {img ? (
                           <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover shrink-0" loading="lazy" />
@@ -715,6 +747,20 @@ export default function QuizPage() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <div className="text-2xl md:text-3xl font-bold leading-tight truncate">{mepName(id)}</div>
+                                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                  {mepPartySig(id) ? (
+                                    <span
+                                      className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none"
+                                      title={mepParty(id) ?? undefined}
+                                      >
+                                        {mepPartySig(id)}
+                                      </span>
+                                    ) : null}
+                                    <span className="text-sm opacity-80 truncate" title={mepParty(id) ?? undefined}>
+                                      {mepParty(id) ?? "—"}
+                                    </span>
+                                  </div>
+
                                 <div className="text-sm md:text-base opacity-80 truncate">{mepGroup(id)}</div>
                                 <div className="text-xs md:text-sm opacity-70 truncate">{mepCountry(id)}</div>
                                 <GhostButton onClick={() => setDetailFor(id)} className="mt-3">
@@ -746,6 +792,20 @@ export default function QuizPage() {
                               <div className="font-semibold truncate">{mepName(id)}</div>
                               <div className="text-xs opacity-70 truncate">{mepGroup(id)}</div>
                               <div className="text-[11px] opacity-60 truncate">{mepCountry(id)}</div>
+                              <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                {mepPartySig(id) ? (
+                                  <span
+                                    className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none"
+                                    title={mepParty(id) ?? undefined}
+                                  >
+                                    {mepPartySig(id)}
+                                  </span>
+                                ) : null}
+                                <span className="text-[12px] opacity-80 truncate" title={mepParty(id) ?? undefined}>
+                                  {mepParty(id) ?? "—"}
+                                </span>
+                              </div>
+
                               <span className="mt-2 block">
                                 <span
                                   onClick={() => setDetailFor(id)}
@@ -871,6 +931,19 @@ export default function QuizPage() {
                                 <div className="font-medium leading-tight break-words sm:truncate">{r.name}</div>
                                 <div className="text-xs opacity-80 leading-tight break-words sm:truncate">{r.group}</div>
                                 <div className="text-[11px] opacity-70 leading-tight break-words sm:truncate">{r.country}</div>
+                                <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                                  {r.partySig ? (
+                                    <span
+                                      className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/12 text-[11px] leading-none"
+                                      title={r.party ?? undefined}
+                                    >
+                                      {r.partySig}
+                                    </span>
+                                  ) : null}
+                                  <span className="text-[11px] opacity-75 sm:truncate" title={r.party ?? undefined}>
+                                    {r.party ?? "—"}
+                                  </span>
+                                </div>
                               </div>
 
                               {/* Escritorio */}
