@@ -626,20 +626,13 @@ const mepPartySig = (id: string) => mepById(id)?.partySig || null;
                               <div className="text-xl font-bold leading-tight break-words flex items-center gap-2 flex-wrap">
                                       {mepName(id)}
                                       {mepPartySig(id) ? (
-                                        <span
-                                          className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none"
-                                        >
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none">
                                           {mepPartySig(id)}
                                         </span>
                                       ) : null}
                                     </div>
-                                    {/* Grupo y país (como ya tenías) */}
                                     <div className="text-xs opacity-80 break-words">{mepGroup(id)}</div>
                                     <div className="text-[11px] opacity-70 break-words">{mepCountry(id)}</div>
-                                    {/* Nombre completo del partido (móvil necesita verlo, no hay hover) */}
-                                    {mepParty(id) ? (
-                                      <div className="text-[11px] opacity-75 break-words mt-1 line-clamp-1">{mepParty(id)}</div>
-                                    ) : null}
                                   </div>
                             <span
                               onClick={() => setDetailFor(id)}
