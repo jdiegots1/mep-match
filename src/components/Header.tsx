@@ -13,7 +13,7 @@ const NAV_LINKS = [
 export default function Header() {
   const pathname = usePathname();
 
-  const navRef = useRef<HTMLDivElement | null>(null);
+   const navRef = useRef<HTMLDivElement | null>(null);
   const linkRefs = useRef<Record<string, HTMLAnchorElement | null>>({});
   const [indicator, setIndicator] = useState<{ width: number; left: number } | null>(null);
 
@@ -35,11 +35,23 @@ export default function Header() {
       return;
     }
 
-    const navRect = navEl.getBoundingClientRect();
-    const linkRect = linkEl.getBoundingClientRect();
+    // Use layout metrics that are relative to the navigation container to avoid
+    // discrepancies introduced by transforms or viewport calculations that can
+    // push the indicator away from the active tab.
+    const offsetParent = linkEl.offsetParent as HTMLElement | null;
+    if (offsetParent && offsetParent !== navEl) {
+      const parentRect = offsetParent.getBoundingClientRect();
+      const navRect = navEl.getBoundingClientRect();
+      setIndicator({
+        width: linkEl.offsetWidth,
+        left: linkEl.offsetLeft + (parentRect.left - navRect.left)
+      });
+      return;
+    }
+
     setIndicator({
-      width: linkRect.width,
-      left: linkRect.left - navRect.left
+      width: linkEl.offsetWidth,
+      left: linkEl.offsetLeft
     });
   }, [activeHref]);
 
@@ -65,8 +77,8 @@ export default function Header() {
         {indicator && (
           <span
             aria-hidden
-            className="absolute inset-y-1 rounded-full bg-white/15 shadow-[0_8px_30px_rgb(2_12_41_/_0.25)] transition-[transform,width] duration-500 ease-out"
-            style={{ width: indicator.width, transform: `translateX(${indicator.left}px)` }}
+            className="absolute inset-y-1 rounded-full bg-white/15 shadow-[0_8px_30px_rgb(2_12_41_/_0.25)] transition-[left,width] duration-500 ease-out"
+            style={{ width: indicator.width, left: indicator.left }}
           />
         )}
         {NAV_LINKS.map(({ href, label }) => {
