@@ -124,6 +124,10 @@ export default function QuizPage() {
         // Miembros
         const m: Member[] =
           (await fetch("/data/members.enriched.json").then((r) => r.json()).catch(() => [])) ?? [];
+          const normalizedMembers = m.map((member) => ({
+          ...member,
+          partySig: (member as any)?.partySig ?? (member as any)?.party_sig ?? null,
+        }));
         alive && smoothTo(0.66);
 
         // Matriz
@@ -164,7 +168,7 @@ export default function QuizPage() {
         const picked = shuffle(filtered).slice(0, 10);
 
         setQuestions(picked);
-        setMembers(m);
+        setMembers(normalizedMembers);
         setMatrix(mat);
         setChoices({});
         setIndex(0);
@@ -341,7 +345,7 @@ export default function QuizPage() {
   const mepCountry = (id: string) => mepById(id)?.country || "—";
   const mepImage = (id: string) => mepById(id)?.image ?? mepById(id)?.photo ?? null;
   const mepParty = (id: string) => mepById(id)?.party || null;
-const mepPartySig = (id: string) => mepById(id)?.partySig || null;
+  const mepPartySig = (id: string) => mepById(id)?.partySig || null;
 
   const overlayOpen = infoOpen || !!detailFor;
 
@@ -653,23 +657,23 @@ const mepPartySig = (id: string) => mepById(id)?.partySig || null;
                         <div className="w-6 h-6 rounded-full bg-[var(--eu-yellow)] text-black font-bold grid place-items-center text-[11px]">
                           {place}
                         </div>
-                        <div className="mt-1 flex items-center gap-2 flex-wrap">
-                          {mepPartySig(id) ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none">
-                              {mepPartySig(id)}
-                            </span>
-                          ) : null}
-                          {mepParty(id) ? (
-                            <span className="text-[11px] opacity-75 line-clamp-1">{mepParty(id)}</span>
-                          ) : null}
-                        </div>
                         {img ? (
                           <img src={img} alt={mepName(id)} className="w-10 h-10 rounded-full object-cover shrink-0" loading="lazy" />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-white/10 grid place-items-center shrink-0">👤</div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold leading-tight break-words">{mepName(id)}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="font-semibold leading-tight break-words">{mepName(id)}</div>
+                            {mepPartySig(id) ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/15 text-[11px] leading-none">
+                                {mepPartySig(id)}
+                              </span>
+                            ) : null}
+                            {mepParty(id) ? (
+                              <span className="text-[11px] opacity-75 line-clamp-1">{mepParty(id)}</span>
+                            ) : null}
+                          </div>
                           <div className="text-xs opacity-80 leading-tight break-words">{mepGroup(id)}</div>
                           <div className="text-[11px] opacity-70 leading-tight break-words">{mepCountry(id)}</div>
                           <span className="mt-2 inline-flex">
