@@ -1,5 +1,5 @@
 // scripts/fetch_htv.ts
-// HTV + enriquecido EP: nombres bien, grupo y foto
+// HTV + enriquecido EP: nombres (NO official), grupo y foto
 import { gunzipSync } from "node:zlib";
 import { fetch } from "undici";
 import { parse } from "csv-parse/sync";
@@ -20,15 +20,14 @@ type VoteRow = {
 };
 type MemberVoteRow = { vote_id: string; member_id: string; position: "FOR"|"AGAINST"|"ABSTENTION"|"DID_NOT_VOTE" };
 
-// EP CSV columnas que nos interesan
+// EP CSV columnas que nos interesan (SIN official)
 type EpRow = {
   mep_identifier: string;
-  mep_official_given_name?: string;
-  mep_official_family_name?: string;
+  mep_given_name?: string;
+  mep_family_name?: string;
   mep_image?: string;
   mep_political_group?: string;
   mep_country_of_representation?: string;
-  // …el resto nos da igual
 };
 
 function titleCaseWord(w: string) {
@@ -58,13 +57,13 @@ async function fetchCsvGz<T = any>(url: string): Promise<T[]> {
 }
 
 function readEpCsvLocal(): Map<string, EpRow> {
-  const p = "data/ep_meps.csv"; // C:\Users\jdieg\Documents\mep-match\data\ep_meps.csv
+  const p = "data/ep_meps.csv"; // tu CSV EP (en inglés/ES, da igual)
   if (!existsSync(p)) return new Map();
   const text = readFileSync(p, "utf8");
   const rows = parse(text, { columns: true, relax_column_count: true }) as EpRow[];
   const map = new Map<string, EpRow>();
   for (const r of rows) {
-    const id = String(r.mep_identifier || "").trim();
+    const id = String((r as any).mep_identifier || "").trim();
     if (id) map.set(id, r);
   }
   return map;
@@ -85,15 +84,15 @@ async function main() {
   const members = membersRaw.map((m) => {
     const id = String((m as any).id).trim();
     const ep = epById.get(id);
-    const first = String((m as any).first_name || "").trim();
-    const last  = String((m as any).last_name  || "").trim();
+    const firstHTV = String((m as any).first_name || "").trim();
+    const lastHTV  = String((m as any).last_name  || "").trim();
 
-    // nombre preferente: oficial EP si existe; si no, HTV arreglado
-    const officialGiven  = (ep?.mep_official_given_name || "").trim();
-    const officialFamily = (ep?.mep_official_family_name || "").trim();
-    const name = (officialGiven || officialFamily)
-      ? fixName(officialGiven || first, officialFamily || last)
-      : fixName(first, last);
+    // NOMBRE: SOLO given+family (EP si existe, si no HTV). NUNCA "official".
+    const epGiven  = String((ep as any)?.mep_given_name || "").trim();
+    const epFamily = String((ep as any)?.mep_family_name || "").trim();
+    const name = (epGiven || epFamily)
+      ? fixName(epGiven || firstHTV, epFamily || lastHTV)
+      : fixName(firstHTV, lastHTV);
 
     const country = ((m as any).country_code || ep?.mep_country_of_representation || "").trim() || null;
     const group   = (ep?.mep_political_group || "").trim() || null;

@@ -2,45 +2,41 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { parse as parseCsv } from "csv-parse/sync";
 
-/** CSV del EP (ENRIQUECIDO EN CASTELLANO) */
+/** CSV del EP (ES o EN) */
 type MEPcsv = {
   mep_identifier: string;
 
-  // nombres (varias variantes)
+  // nombres (solo estos, NO official)
   mep_given_name?: string;
   mep_family_name?: string;
-  mep_official_given_name?: string;
-  mep_official_family_name?: string;
 
   // país, grupo parlamentario europeo, foto
   mep_country_of_representation?: string;
   mep_political_group?: string;
   mep_image?: string;
 
-  // NUEVO: partido/coalición y siglas (añadido por ti)
-  mep_polgroup?: string;       // p.ej. "Sumar", "PP", "PSOE", "Coalición por ..."
-  mep_polgroup_sig?: string;   // p.ej. "SUMAR", "PP", "PSOE"
+  // partido/coalición y siglas (añadidas por ti)
+  mep_polgroup?: string;
+  mep_polgroup_sig?: string;
 };
 
-/** Estructura del members.json base (de HTV) */
+/** members.json base (de fetch_htv.ts) */
 type MemberBase = {
   id: string | number;
   name?: string | null;
   country?: string | null;
-  group?: string | null;      // grupo parlamentario europeo
+  group?: string | null;
   image?: string | null;
-  photo?: string | null;      // a veces venía así
+  photo?: string | null;
 };
 
-/** Estructura de salida (enriquecida) */
+/** salida enriquecida */
 type MemberOut = {
   id: string;
   name: string;
   country: string | null;
-  group: string | null;      // grupo parlamentario europeo (se mantiene)
+  group: string | null;
   image: string | null;
-
-  // NUEVO: partido/coalición nacional y siglas
   party: string | null;
   party_sig: string | null;
 };
@@ -62,37 +58,33 @@ function titleCase(s: string) {
     .join(" ");
 }
 
-/** Escoge el mejor nombre disponible (preferimos el oficial si existe) */
+/** NOMBRE: SOLO given+family (EP). Si no hay, usa fallback (HTV). */
 function pickName(r: MEPcsv, fallback?: string | null): string {
   const given = tidy(r.mep_given_name);
-  const fam = tidy(r.mep_family_name);
-  const offGiven = tidy(r.mep_official_given_name);
-  const offFam = tidy(r.mep_official_family_name);
+  const fam   = tidy(r.mep_family_name);
 
-  const prefA = [offGiven, offFam].filter(Boolean).join(" ");
-  const prefB = [given, fam].filter(Boolean).join(" ");
+  const prefer = [given, fam].filter(Boolean).join(" ");
+  const chosen = tidy(prefer || fallback || "");
 
-  const chosen = tidy(prefA || prefB || fallback || "");
-  // Ponemos en Title Case suave (respetando preposiciones)
   return chosen
     .split(/\s+/)
-    .map((w, i) => (i === 0 ? titleCase(w) : titleCase(w)))
+    .map((w) => titleCase(w))
     .join(" ");
 }
 
-/** Detecta si el CSV usa ; o , como separador */
+/** Detecta ; o , */
 function autodetectDelimiter(firstLine: string): "," | ";" {
   const sc = (firstLine.match(/;/g)?.length ?? 0);
   const cc = (firstLine.match(/,/g)?.length ?? 0);
   return sc >= cc ? ";" : ",";
 }
 
-// ----------- Config rutas -----------
-const csvPath = "data/ep_meps_es.csv";           // TU CSV en ES con tus nuevas columnas
-const membersPath = "public/data/members.json";  // Base generado por fetch_htv.ts
+// -------- rutas --------
+const csvPath = "data/ep_meps_es.csv";
+const membersPath = "public/data/members.json";
 const outPath = "public/data/members.enriched.json";
 
-// ----------- Carga CSV EP -----------
+// -------- carga EP CSV --------
 const epCsvText = readFileSync(csvPath, "utf8");
 const firstLine = epCsvText.split(/\r?\n/, 1)[0] ?? "";
 const delimiter = autodetectDelimiter(firstLine);
@@ -109,14 +101,13 @@ if (!epRows.length) {
   console.error("ERROR: CSV vacío o ilegible:", csvPath);
   process.exit(1);
 }
-
 const epById = new Map<string, MEPcsv>();
 for (const r of epRows) {
   const id = tidy(r.mep_identifier);
   if (id) epById.set(id, r);
 }
 
-// ----------- Carga members base -----------
+// -------- carga base HTV --------
 const membersBase = JSON.parse(readFileSync(membersPath, "utf8")) as MemberBase[];
 
 let updatedName = 0;
@@ -127,7 +118,7 @@ let updatedParty = 0;
 let updatedPartySig = 0;
 let noMatch = 0;
 
-// ----------- Fusión -----------
+// -------- fusión --------
 const enriched: MemberOut[] = membersBase.map((m) => {
   const id = String(m.id);
   const row = epById.get(id);
@@ -147,10 +138,9 @@ const enriched: MemberOut[] = membersBase.map((m) => {
 
   const nextName = pickName(row, m.name);
   const nextCountry = tidy(row.mep_country_of_representation) || (m.country ?? null) || null;
-  const nextGroup = tidy(row.mep_political_group) || (m.group ?? null) || null; // GRUPO PARLAMENTARIO EP
+  const nextGroup = tidy(row.mep_political_group) || (m.group ?? null) || null; // grupo EP
   const nextImage = tidy(row.mep_image) || m.image || m.photo || null;
 
-  // NUEVO: partido/coalición nacional + siglas
   const nextParty = tidy(row.mep_polgroup) || null;
   const nextPartySig = tidy(row.mep_polgroup_sig) || null;
 
@@ -172,10 +162,10 @@ const enriched: MemberOut[] = membersBase.map((m) => {
   };
 });
 
-// ----------- Escribe salida -----------
+// -------- salida --------
 writeFileSync(outPath, JSON.stringify(enriched, null, 2), "utf8");
 
-// ----------- Log -----------
+// -------- log --------
 const total = membersBase.length;
 console.log(`OK merge_meps: ${total} miembros enriquecidos (fuente ${csvPath}, delimitador "${delimiter}")`);
 console.log(
